@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "skills": {
+    "prisma-cli": {
+      "source": "prisma/skills",
+      "sourceType": "github",
+      "skillPath": "prisma-cli/SKILL.md",
+      "computedHash": "aaec1e0169bb8ae74b0e3c4b39a4ed00cef79741df42fb9c93771736fccf378f"
+    },
+    "prisma-client-api": {
+      "source": "prisma/skills",
+      "sourceType": "github",
+      "skillPath": "prisma-client-api/SKILL.md",
+      "computedHash": "cbbabff961c8e16b2d59f8c1ffb4e7e20be52154e778ab95121e0211d6d09969"
+    },
+    "prisma-compute": {
+      "source": "prisma/skills",
+      "sourceType": "github",
+      "skillPath": "prisma-compute/SKILL.md",
+      "computedHash": "cc1648c5ef56e63a352bcf6b3d6caad44890d4fbe553c83dda9596d6178e9e22"
+    },
+    "prisma-driver-adapter-implementation": {
+      "source": "prisma/skills",
+      "sourceType": "github",
+      "skillPath": "prisma-driver-adapter-implementation/SKILL.md",
+      "computedHash": "cc487f1bf36f616ddb3a9478b3527d288dd706d77a9e5dbee9af52dca1eee8e4"
+    },
+    "prisma-orm-setup": {
+      "source": "prisma/skills",
+      "sourceType": "github",
+      "skillPath": "prisma-orm-setup/SKILL.md",
+      "computedHash": "08c8bc188c5a304f549aea607320905c9edc0485692182bf590a56dfc71617ca"
+    },
+    "prisma-postgres-setup": {
+      "source": "prisma/skills",
+      "sourceType": "github",
+      "skillPath": "prisma-postgres-setup/SKILL.md",
+      "computedHash": "db538316e4731435eaf259dbc51ebc3766442fa2a5e07c238918e7fb92d9bb93"
+    }
+  }
+}
