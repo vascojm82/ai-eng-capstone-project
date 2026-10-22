@@ -1,21 +1,58 @@
 // use prisma-8
 
-model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  username  String?
-  name      String?
-  posts     Post[]
-  createdAt TimestamptzString @default(now())
-  updatedAt temporal.updatedAtString()
+// One row per year/model/trim (a row of manifest.csv).
+model Vehicle {
+  id        Int             @id @default(autoincrement()) @map("vehicle_id")
+  make      String          @default("Acura")
+  model     String
+  year      Int
+  trim      String
+  modelCode String?         @map("model_code")
+  market    String          @default("US")
+  manuals   VehicleManual[]
+
+  @@unique([year, model, trim, market])
+  @@map("vehicles")
 }
 
-model Post {
-  id        Int      @id @default(autoincrement())
-  title     String
-  content   String?
-  author    User     @relation(fields: [authorId], references: [id])
-  authorId  Int
-  createdAt TimestamptzString @default(now())
-  updatedAt temporal.updatedAtString()
+// One row per unique manual. Many trims share the same PDF, so the PDF is
+// stored (and later chunked/embedded) exactly once.
+model Manual {
+  id         Int                @id @default(autoincrement()) @map("manual_id")
+  docCode    String             @unique @map("doc_code")
+  title      String
+  manualType ManualType         @map("manual_type")
+  year       Int
+  language   String             @default("en-US")
+  edition    String?
+  format     ManualFormat
+  filePath   String?            @map("file_path")
+  sourceUrl  String             @map("source_url")
+  sha256     String?            @unique
+  pageCount  Int?               @map("page_count")
+  ingestedAt TimestamptzString? @map("ingested_at")
+  vehicles   VehicleManual[]
+
+  @@map("manuals")
+}
+
+model VehicleManual {
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  vehicleId Int     @map("vehicle_id")
+  manual    Manual  @relation(fields: [manualId], references: [id], onDelete: Cascade)
+  manualId  Int     @map("manual_id")
+
+  @@id([vehicleId, manualId])
+  @@map("vehicle_manuals")
+}
+
+enum ManualType {
+  owner
+  navigation
+  interactive
+}
+
+enum ManualFormat {
+  pdf
+  html
 }

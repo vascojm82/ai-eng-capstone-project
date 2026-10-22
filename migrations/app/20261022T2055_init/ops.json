@@ -1,0 +1,510 @@
+[
+  {
+    "id": "schema.public",
+    "label": "Create schema \"public\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Create schema \"public\"",
+        "sql": "CREATE SCHEMA IF NOT EXISTS \"public\"",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "table.manuals",
+    "label": "Create table \"manuals\"",
+    "summary": "Creates table \"manuals\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "manuals"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"manuals\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"manuals\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"manuals\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"manuals\"",
+        "sql": "CREATE TABLE \"public\".\"manuals\" (\n  \"doc_code\" text NOT NULL,\n  \"edition\" text,\n  \"file_path\" text,\n  \"format\" text NOT NULL,\n  \"ingested_at\" timestamptz,\n  \"language\" text DEFAULT 'en-US' NOT NULL,\n  \"manual_id\" SERIAL NOT NULL,\n  \"manual_type\" text NOT NULL,\n  \"page_count\" int4,\n  \"sha256\" text,\n  \"source_url\" text NOT NULL,\n  \"title\" text NOT NULL,\n  \"year\" int4 NOT NULL,\n  PRIMARY KEY (\"manual_id\"),\n  CONSTRAINT \"manuals_format_check_b07f7c0c\" CHECK (\"format\" IN ('pdf', 'html')),\n  CONSTRAINT \"manuals_manual_type_check_939c4278\" CHECK (\"manual_type\" IN ('owner', 'navigation', 'interactive'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"manuals\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"manuals\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"manuals\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.vehicle_manuals",
+    "label": "Create table \"vehicle_manuals\"",
+    "summary": "Creates table \"vehicle_manuals\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "vehicle_manuals"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"vehicle_manuals\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"vehicle_manuals\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"vehicle_manuals\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"vehicle_manuals\"",
+        "sql": "CREATE TABLE \"public\".\"vehicle_manuals\" (\n  \"manual_id\" int4 NOT NULL,\n  \"vehicle_id\" int4 NOT NULL,\n  PRIMARY KEY (\"vehicle_id\", \"manual_id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"vehicle_manuals\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"vehicle_manuals\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"vehicle_manuals\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "table.vehicles",
+    "label": "Create table \"vehicles\"",
+    "summary": "Creates table \"vehicles\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "vehicles"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"vehicles\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"vehicles\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "table \"vehicles\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"vehicles\"",
+        "sql": "CREATE TABLE \"public\".\"vehicles\" (\n  \"make\" text DEFAULT 'Acura' NOT NULL,\n  \"market\" text DEFAULT 'US' NOT NULL,\n  \"model\" text NOT NULL,\n  \"model_code\" text,\n  \"trim\" text NOT NULL,\n  \"vehicle_id\" SERIAL NOT NULL,\n  \"year\" int4 NOT NULL,\n  PRIMARY KEY (\"vehicle_id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"vehicles\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"vehicles\"",
+          "r",
+          "p"
+        ],
+        "expectation": {
+          "expects": "present",
+          "object": "table \"vehicles\""
+        }
+      }
+    ]
+  },
+  {
+    "id": "unique.manuals.manuals_doc_code_key",
+    "label": "Add unique constraint on \"manuals\" (doc_code)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "manuals_doc_code_key",
+        "table": "manuals"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"manuals_doc_code_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "manuals_doc_code_key",
+          "public",
+          "\"public\".\"manuals\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"manuals_doc_code_key\" on \"manuals\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"manuals_doc_code_key\"",
+        "sql": "ALTER TABLE \"public\".\"manuals\" ADD CONSTRAINT \"manuals_doc_code_key\" UNIQUE (\"doc_code\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"manuals_doc_code_key\" exists on (doc_code)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "manuals_doc_code_key",
+          "public",
+          "\"public\".\"manuals\"",
+          "u",
+          "[\"doc_code\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.manuals.manuals_sha256_key",
+    "label": "Add unique constraint on \"manuals\" (sha256)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "manuals_sha256_key",
+        "table": "manuals"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"manuals_sha256_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "manuals_sha256_key",
+          "public",
+          "\"public\".\"manuals\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"manuals_sha256_key\" on \"manuals\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"manuals_sha256_key\"",
+        "sql": "ALTER TABLE \"public\".\"manuals\" ADD CONSTRAINT \"manuals_sha256_key\" UNIQUE (\"sha256\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"manuals_sha256_key\" exists on (sha256)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "manuals_sha256_key",
+          "public",
+          "\"public\".\"manuals\"",
+          "u",
+          "[\"sha256\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.vehicles.vehicles_year_model_trim_market_key",
+    "label": "Add unique constraint on \"vehicles\" (year, model, trim, market)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "vehicles_year_model_trim_market_key",
+        "table": "vehicles"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"vehicles_year_model_trim_market_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "vehicles_year_model_trim_market_key",
+          "public",
+          "\"public\".\"vehicles\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "constraint \"vehicles_year_model_trim_market_key\" on \"vehicles\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"vehicles_year_model_trim_market_key\"",
+        "sql": "ALTER TABLE \"public\".\"vehicles\" ADD CONSTRAINT \"vehicles_year_model_trim_market_key\" UNIQUE (\"year\", \"model\", \"trim\", \"market\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"vehicles_year_model_trim_market_key\" exists on (year, model, trim, market)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "vehicles_year_model_trim_market_key",
+          "public",
+          "\"public\".\"vehicles\"",
+          "u",
+          "[\"year\",\"model\",\"trim\",\"market\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.vehicle_manuals.vehicle_manuals_manual_id_idx_221772fa",
+    "label": "Create index \"vehicle_manuals_manual_id_idx_221772fa\" on \"vehicle_manuals\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "vehicle_manuals_manual_id_idx_221772fa",
+        "table": "vehicle_manuals"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"vehicle_manuals_manual_id_idx_221772fa\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"vehicle_manuals_manual_id_idx_221772fa\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"vehicle_manuals_manual_id_idx_221772fa\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"vehicle_manuals_manual_id_idx_221772fa\"",
+        "sql": "CREATE INDEX \"vehicle_manuals_manual_id_idx_221772fa\" ON \"public\".\"vehicle_manuals\" (\"manual_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"vehicle_manuals_manual_id_idx_221772fa\" exists on \"vehicle_manuals\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"vehicle_manuals_manual_id_idx_221772fa\"",
+          "i",
+          "I",
+          "\"public\".\"vehicle_manuals\"",
+          "btree",
+          "[\"manual_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.vehicle_manuals.vehicle_manuals_vehicle_id_idx_fbbcb34b",
+    "label": "Create index \"vehicle_manuals_vehicle_id_idx_fbbcb34b\" on \"vehicle_manuals\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "vehicle_manuals_vehicle_id_idx_fbbcb34b",
+        "table": "vehicle_manuals"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"vehicle_manuals_vehicle_id_idx_fbbcb34b\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"vehicle_manuals_vehicle_id_idx_fbbcb34b\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "index \"vehicle_manuals_vehicle_id_idx_fbbcb34b\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"vehicle_manuals_vehicle_id_idx_fbbcb34b\"",
+        "sql": "CREATE INDEX \"vehicle_manuals_vehicle_id_idx_fbbcb34b\" ON \"public\".\"vehicle_manuals\" (\"vehicle_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"vehicle_manuals_vehicle_id_idx_fbbcb34b\" exists on \"vehicle_manuals\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"vehicle_manuals_vehicle_id_idx_fbbcb34b\"",
+          "i",
+          "I",
+          "\"public\".\"vehicle_manuals\"",
+          "btree",
+          "[\"vehicle_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.vehicle_manuals.vehicle_manuals_vehicle_id_fkey",
+    "label": "Add foreign key \"vehicle_manuals_vehicle_id_fkey\" on \"vehicle_manuals\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "vehicle_manuals_vehicle_id_fkey",
+        "table": "vehicle_manuals"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"vehicle_manuals_vehicle_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "vehicle_manuals_vehicle_id_fkey",
+          "public",
+          "\"public\".\"vehicle_manuals\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"vehicle_manuals_vehicle_id_fkey\" on \"vehicle_manuals\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"vehicle_manuals_vehicle_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"vehicle_manuals\"\nADD CONSTRAINT \"vehicle_manuals_vehicle_id_fkey\"\nFOREIGN KEY (\"vehicle_id\")\nREFERENCES \"public\".\"vehicles\" (\"vehicle_id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"vehicle_manuals_vehicle_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "vehicle_manuals_vehicle_id_fkey",
+          "public",
+          "\"public\".\"vehicle_manuals\"",
+          "f",
+          "[\"vehicle_id\"]",
+          "\"public\".\"vehicles\"",
+          "[\"vehicle_id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.vehicle_manuals.vehicle_manuals_manual_id_fkey",
+    "label": "Add foreign key \"vehicle_manuals_manual_id_fkey\" on \"vehicle_manuals\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "vehicle_manuals_manual_id_fkey",
+        "table": "vehicle_manuals"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"vehicle_manuals_manual_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "vehicle_manuals_manual_id_fkey",
+          "public",
+          "\"public\".\"vehicle_manuals\""
+        ],
+        "expectation": {
+          "expects": "absent",
+          "object": "FK \"vehicle_manuals_manual_id_fkey\" on \"vehicle_manuals\""
+        }
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"vehicle_manuals_manual_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"vehicle_manuals\"\nADD CONSTRAINT \"vehicle_manuals_manual_id_fkey\"\nFOREIGN KEY (\"manual_id\")\nREFERENCES \"public\".\"manuals\" (\"manual_id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"vehicle_manuals_manual_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "vehicle_manuals_manual_id_fkey",
+          "public",
+          "\"public\".\"vehicle_manuals\"",
+          "f",
+          "[\"manual_id\"]",
+          "\"public\".\"manuals\"",
+          "[\"manual_id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  }
+]

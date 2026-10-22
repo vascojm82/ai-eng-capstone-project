@@ -4,46 +4,143 @@
   "target": "postgres",
   "profileHash": "3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2",
   "roots": {
-    "Post": {
-      "model": "Post",
+    "manuals": {
+      "model": "Manual",
       "namespace": "public"
     },
-    "User": {
-      "model": "User",
+    "vehicle_manuals": {
+      "model": "VehicleManual",
+      "namespace": "public"
+    },
+    "vehicles": {
+      "model": "Vehicle",
       "namespace": "public"
     }
   },
   "domain": {
     "namespaces": {
       "public": {
+        "enum": {
+          "ManualFormat": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "pdf",
+                "value": "pdf"
+              },
+              {
+                "name": "html",
+                "value": "html"
+              }
+            ]
+          },
+          "ManualType": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "owner",
+                "value": "owner"
+              },
+              {
+                "name": "navigation",
+                "value": "navigation"
+              },
+              {
+                "name": "interactive",
+                "value": "interactive"
+              }
+            ]
+          }
+        },
         "models": {
-          "Post": {
+          "Manual": {
             "fields": {
-              "authorId": {
+              "docCode": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/int4@1",
+                  "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
-              "content": {
+              "edition": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
-              "createdAt": {
+              "filePath": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "format": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/text@1",
                   "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "ManualFormat",
+                  "namespaceId": "public",
+                  "plane": "domain"
                 }
               },
               "id": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "ingestedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "language": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "manualType": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "ManualType",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "pageCount": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "sha256": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sourceUrl": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
@@ -54,73 +151,79 @@
                   "kind": "scalar"
                 }
               },
-              "updatedAt": {
+              "year": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
               }
             },
             "relations": {
-              "author": {
-                "cardinality": "N:1",
-                "nullable": false,
+              "vehicles": {
+                "cardinality": "1:N",
                 "on": {
                   "localFields": [
-                    "authorId"
+                    "id"
                   ],
                   "targetFields": [
-                    "id"
+                    "manualId"
                   ]
                 },
                 "to": {
-                  "model": "User",
+                  "model": "VehicleManual",
                   "namespace": "public"
                 }
               }
             },
             "storage": {
               "fields": {
-                "authorId": {
-                  "column": "authorId"
+                "docCode": {
+                  "column": "doc_code"
                 },
-                "content": {
-                  "column": "content"
+                "edition": {
+                  "column": "edition"
                 },
-                "createdAt": {
-                  "column": "createdAt"
+                "filePath": {
+                  "column": "file_path"
+                },
+                "format": {
+                  "column": "format"
                 },
                 "id": {
-                  "column": "id"
+                  "column": "manual_id"
+                },
+                "ingestedAt": {
+                  "column": "ingested_at"
+                },
+                "language": {
+                  "column": "language"
+                },
+                "manualType": {
+                  "column": "manual_type"
+                },
+                "pageCount": {
+                  "column": "page_count"
+                },
+                "sha256": {
+                  "column": "sha256"
+                },
+                "sourceUrl": {
+                  "column": "source_url"
                 },
                 "title": {
                   "column": "title"
                 },
-                "updatedAt": {
-                  "column": "updatedAt"
+                "year": {
+                  "column": "year"
                 }
               },
               "namespaceId": "public",
-              "table": "Post"
+              "table": "manuals"
             }
           },
-          "User": {
+          "Vehicle": {
             "fields": {
-              "createdAt": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/timestamptz-string@1",
-                  "kind": "scalar"
-                }
-              },
-              "email": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -128,68 +231,156 @@
                   "kind": "scalar"
                 }
               },
-              "name": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "updatedAt": {
+              "make": {
                 "nullable": false,
                 "type": {
-                  "codecId": "pg/timestamptz-string@1",
+                  "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
-              "username": {
+              "market": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "model": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "modelCode": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "trim": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "year": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
               }
             },
             "relations": {
-              "posts": {
+              "manuals": {
                 "cardinality": "1:N",
                 "on": {
                   "localFields": [
                     "id"
                   ],
                   "targetFields": [
-                    "authorId"
+                    "vehicleId"
                   ]
                 },
                 "to": {
-                  "model": "Post",
+                  "model": "VehicleManual",
                   "namespace": "public"
                 }
               }
             },
             "storage": {
               "fields": {
-                "createdAt": {
-                  "column": "createdAt"
-                },
-                "email": {
-                  "column": "email"
-                },
                 "id": {
-                  "column": "id"
+                  "column": "vehicle_id"
                 },
-                "name": {
-                  "column": "name"
+                "make": {
+                  "column": "make"
                 },
-                "updatedAt": {
-                  "column": "updatedAt"
+                "market": {
+                  "column": "market"
                 },
-                "username": {
-                  "column": "username"
+                "model": {
+                  "column": "model"
+                },
+                "modelCode": {
+                  "column": "model_code"
+                },
+                "trim": {
+                  "column": "trim"
+                },
+                "year": {
+                  "column": "year"
                 }
               },
               "namespaceId": "public",
-              "table": "User"
+              "table": "vehicles"
+            }
+          },
+          "VehicleManual": {
+            "fields": {
+              "manualId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "vehicleId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "manual": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "manualId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Manual",
+                  "namespace": "public"
+                }
+              },
+              "vehicle": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "vehicleId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Vehicle",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "manualId": {
+                  "column": "manual_id"
+                },
+                "vehicleId": {
+                  "column": "vehicle_id"
+                }
+              },
+              "namespaceId": "public",
+              "table": "vehicle_manuals"
             }
           }
         }
@@ -201,34 +392,93 @@
       "public": {
         "entries": {
           "table": {
-            "Post": {
+            "manuals": {
+              "checks": [
+                {
+                  "expression": "\"format\" IN ('pdf', 'html')",
+                  "name": "manuals_format_check_b07f7c0c",
+                  "prefix": "manuals_format_check"
+                },
+                {
+                  "expression": "\"manual_type\" IN ('owner', 'navigation', 'interactive')",
+                  "name": "manuals_manual_type_check_939c4278",
+                  "prefix": "manuals_manual_type_check"
+                }
+              ],
               "columns": {
-                "authorId": {
-                  "codecId": "pg/int4@1",
-                  "dataType": "pg/int4",
+                "doc_code": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
-                "content": {
+                "edition": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": true
                 },
-                "createdAt": {
+                "file_path": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "format": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "ManualFormat",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "ingested_at": {
                   "codecId": "pg/timestamptz-string@1",
                   "dataType": "pg/timestamptz",
+                  "nullable": true
+                },
+                "language": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
-                    "expression": "now()",
-                    "kind": "function"
+                    "kind": "literal",
+                    "value": "en-US"
                   },
                   "nullable": false
                 },
-                "id": {
+                "manual_id": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
                   "default": {
                     "expression": "autoincrement()",
                     "kind": "function"
                   },
+                  "nullable": false
+                },
+                "manual_type": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "ManualType",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "page_count": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": true
+                },
+                "sha256": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "source_url": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "nullable": false
                 },
                 "title": {
@@ -236,67 +486,149 @@
                   "dataType": "pg/text",
                   "nullable": false
                 },
-                "updatedAt": {
-                  "codecId": "pg/timestamptz-string@1",
-                  "dataType": "pg/timestamptz",
+                "year": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [],
+              "indexes": [],
+              "primaryKey": {
+                "columns": [
+                  "manual_id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "doc_code"
+                  ]
+                },
+                {
+                  "columns": [
+                    "sha256"
+                  ]
+                }
+              ]
+            },
+            "vehicle_manuals": {
+              "columns": {
+                "manual_id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                },
+                "vehicle_id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "nullable": false
                 }
               },
               "foreignKeys": [
                 {
                   "index": {
-                    "name": "Post_authorId_idx_e47547ed"
+                    "name": "vehicle_manuals_vehicle_id_idx_fbbcb34b"
                   },
+                  "onDelete": "cascade",
                   "source": {
                     "columns": [
-                      "authorId"
+                      "vehicle_id"
                     ],
                     "namespaceId": "public",
-                    "tableName": "Post"
+                    "tableName": "vehicle_manuals"
                   },
                   "target": {
                     "columns": [
-                      "id"
+                      "vehicle_id"
                     ],
                     "namespaceId": "public",
-                    "tableName": "User"
+                    "tableName": "vehicles"
+                  }
+                },
+                {
+                  "index": {
+                    "name": "vehicle_manuals_manual_id_idx_221772fa"
+                  },
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "manual_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "vehicle_manuals"
+                  },
+                  "target": {
+                    "columns": [
+                      "manual_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "manuals"
                   }
                 }
               ],
               "indexes": [
                 {
                   "columns": [
-                    "authorId"
+                    "manual_id"
                   ],
-                  "name": "Post_authorId_idx_e47547ed",
-                  "prefix": "Post_authorId_idx",
+                  "name": "vehicle_manuals_manual_id_idx_221772fa",
+                  "prefix": "vehicle_manuals_manual_id_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "vehicle_id"
+                  ],
+                  "name": "vehicle_manuals_vehicle_id_idx_fbbcb34b",
+                  "prefix": "vehicle_manuals_vehicle_id_idx",
                   "unique": false
                 }
               ],
               "primaryKey": {
                 "columns": [
-                  "id"
+                  "vehicle_id",
+                  "manual_id"
                 ]
               },
               "uniques": []
             },
-            "User": {
+            "vehicles": {
               "columns": {
-                "createdAt": {
-                  "codecId": "pg/timestamptz-string@1",
-                  "dataType": "pg/timestamptz",
+                "make": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
                   "default": {
-                    "expression": "now()",
-                    "kind": "function"
+                    "kind": "literal",
+                    "value": "Acura"
                   },
                   "nullable": false
                 },
-                "email": {
+                "market": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "default": {
+                    "kind": "literal",
+                    "value": "US"
+                  },
+                  "nullable": false
+                },
+                "model": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
                 },
-                "id": {
+                "model_code": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "trim": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "vehicle_id": {
                   "codecId": "pg/int4@1",
                   "dataType": "pg/int4",
                   "default": {
@@ -305,35 +637,45 @@
                   },
                   "nullable": false
                 },
-                "name": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
-                "updatedAt": {
-                  "codecId": "pg/timestamptz-string@1",
-                  "dataType": "pg/timestamptz",
+                "year": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "nullable": false
-                },
-                "username": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
                 }
               },
               "foreignKeys": [],
               "indexes": [],
               "primaryKey": {
                 "columns": [
-                  "id"
+                  "vehicle_id"
                 ]
               },
               "uniques": [
                 {
                   "columns": [
-                    "email"
+                    "year",
+                    "model",
+                    "trim",
+                    "market"
                   ]
                 }
+              ]
+            }
+          },
+          "valueSet": {
+            "ManualFormat": {
+              "kind": "valueSet",
+              "values": [
+                "pdf",
+                "html"
+              ]
+            },
+            "ManualType": {
+              "kind": "valueSet",
+              "values": [
+                "owner",
+                "navigation",
+                "interactive"
               ]
             }
           }
@@ -342,44 +684,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "a51b4833fdaffe730572670ccc27dd89af7e0726ab3de7f428d21702d687cc15"
-  },
-  "execution": {
-    "executionHash": "3730158042e7c88d23f35529e89ad90532db0cd5c528c13e701f93cb45aa8a9c",
-    "mutations": {
-      "defaults": [
-        {
-          "onCreate": {
-            "id": "timestamptzStringNow",
-            "kind": "generator"
-          },
-          "onUpdate": {
-            "id": "timestamptzStringNow",
-            "kind": "generator"
-          },
-          "ref": {
-            "entry": "Post",
-            "field": "updatedAt",
-            "namespace": "public"
-          }
-        },
-        {
-          "onCreate": {
-            "id": "timestamptzStringNow",
-            "kind": "generator"
-          },
-          "onUpdate": {
-            "id": "timestamptzStringNow",
-            "kind": "generator"
-          },
-          "ref": {
-            "entry": "User",
-            "field": "updatedAt",
-            "namespace": "public"
-          }
-        }
-      ]
-    }
+    "storageHash": "02f392844389ef46e12e2330e88408bf94ec03226e5fd5f103097376b11f3a77"
   },
   "capabilities": {
     "postgres": {
