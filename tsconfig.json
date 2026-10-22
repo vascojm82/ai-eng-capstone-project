@@ -13,5 +13,5 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["server.ts", "routes/**/*.ts", "scripts/**/*.ts", "lib/**/*.ts", "src/**/*.ts"]
+  "include": ["server.ts", "routes/**/*.ts", "scripts/**/*.ts", "lib/**/*.ts", "src/**/*.ts", "service.ts", "module.ts", "prisma.config.ts"]
 }

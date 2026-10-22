@@ -3,7 +3,7 @@ import express, { type ErrorRequestHandler } from "express";
 import indexRouter from "./routes/index.ts";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
 
@@ -19,6 +19,6 @@ const jsonErrorHandler: ErrorRequestHandler = (err, req, res, next) => {
 
 app.use(jsonErrorHandler);
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server listening on http://localhost:${PORT}`);
 });
