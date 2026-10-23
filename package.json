@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "ts": "tsx --import ./lib/env.ts",
     "build": "tsc -p tsconfig.build.json",
-    "contract:emit": "prisma contract emit"
+    "contract:emit": "prisma contract emit",
+    "db:seed": "tsx --import ./lib/env.ts scripts/db/seed.ts"
   },
   "keywords": [],
   "author": "",
