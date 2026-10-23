@@ -28,7 +28,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'672597b628f9dfd4607980009b307615683fe7684993b316c8fc15a30f31ec69'>;
+  StorageHashBase<'b2836d39d80b94afd1e9de968455bc3fa804d5865bb6ba34b0c08e050bc7bf88'>;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
@@ -248,10 +248,9 @@ type FieldTypeOverrides = {
   readonly public: {
     readonly models: {
       readonly Manual: {
-        readonly format: { readonly output: 'pdf' | 'html'; readonly input: 'pdf' | 'html' };
         readonly manualType: {
-          readonly output: 'owner' | 'navigation' | 'interactive';
-          readonly input: 'owner' | 'navigation' | 'interactive';
+          readonly output: 'owner' | 'navigation';
+          readonly input: 'owner' | 'navigation';
         };
       };
     };
@@ -274,10 +273,9 @@ export type FieldInputTypes = FieldTypesFromDomain<
 type ColumnTypeOverrides = {
   readonly public: {
     readonly manuals: {
-      readonly format: { readonly output: 'pdf' | 'html'; readonly input: 'pdf' | 'html' };
       readonly manual_type: {
-        readonly output: 'owner' | 'navigation' | 'interactive';
-        readonly input: 'owner' | 'navigation' | 'interactive';
+        readonly output: 'owner' | 'navigation';
+        readonly input: 'owner' | 'navigation';
       };
     };
   };
@@ -311,7 +309,6 @@ export namespace Models {
   export type public_Manual = {
     docCode: FieldOutputTypes['public']['Manual']['docCode'];
     edition: FieldOutputTypes['public']['Manual']['edition'];
-    format: FieldOutputTypes['public']['Manual']['format'];
     id: FieldOutputTypes['public']['Manual']['id'];
     ingestedAt: FieldOutputTypes['public']['Manual']['ingestedAt'];
     language: FieldOutputTypes['public']['Manual']['language'];
@@ -453,12 +450,6 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
-                  readonly many: false;
-                };
-                readonly format: {
-                  readonly dataType: 'pg/text';
-                  readonly codecId: 'pg/text@1';
-                  readonly nullable: false;
                   readonly many: false;
                 };
                 readonly ingested_at: {
@@ -656,13 +647,9 @@ type ContractBase = Omit<
             };
           };
           readonly valueSet: {
-            readonly ManualFormat: {
-              readonly kind: 'valueSet';
-              readonly values: readonly ['pdf', 'html'];
-            };
             readonly ManualType: {
               readonly kind: 'valueSet';
-              readonly values: readonly ['owner', 'navigation', 'interactive'];
+              readonly values: readonly ['owner', 'navigation'];
             };
           };
         };
@@ -755,10 +742,6 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
-              readonly format: {
-                readonly nullable: false;
-                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
-              };
               readonly id: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
@@ -829,7 +812,6 @@ type ContractBase = Omit<
               readonly fields: {
                 readonly docCode: { readonly column: 'doc_code' };
                 readonly edition: { readonly column: 'edition' };
-                readonly format: { readonly column: 'format' };
                 readonly id: { readonly column: 'manual_id' };
                 readonly ingestedAt: { readonly column: 'ingested_at' };
                 readonly language: { readonly column: 'language' };
@@ -948,31 +930,18 @@ type ContractBase = Omit<
           };
         };
         readonly enum: {
-          readonly ManualFormat: {
-            readonly codecId: 'pg/text@1';
-            readonly members: readonly [
-              { readonly name: 'pdf'; readonly value: 'pdf' },
-              { readonly name: 'html'; readonly value: 'html' },
-            ];
-          };
           readonly ManualType: {
             readonly codecId: 'pg/text@1';
             readonly members: readonly [
               { readonly name: 'owner'; readonly value: 'owner' },
               { readonly name: 'navigation'; readonly value: 'navigation' },
-              { readonly name: 'interactive'; readonly value: 'interactive' },
             ];
           };
         };
         readonly enumMemberTypes?: {
-          readonly ManualFormat: readonly [
-            { readonly name: 'pdf'; readonly value: 'pdf' },
-            { readonly name: 'html'; readonly value: 'html' },
-          ];
           readonly ManualType: readonly [
             { readonly name: 'owner'; readonly value: 'owner' },
             { readonly name: 'navigation'; readonly value: 'navigation' },
-            { readonly name: 'interactive'; readonly value: 'interactive' },
           ];
         };
       };

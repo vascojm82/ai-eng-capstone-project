@@ -5,7 +5,9 @@
  * Each manifest row is one trim + one manual. Many trims share the same PDF,
  * so manuals are keyed by doc_code (the file code in the URL, e.g.
  * BTYA2626OMEN) and inserted once; vehicle_manuals links every trim to it.
- * Everything is upserted on its unique key, so re-running is safe.
+ * Only PDF manuals are seeded: the interactive (HTML) manuals in the
+ * manifests are skipped. Everything is upserted on its unique key, so
+ * re-running is safe.
  *
  * Usage:
  *   npm run db:seed
@@ -31,7 +33,7 @@ type ManifestRow = {
   url: string;
 };
 
-type ManualType = "owner" | "navigation" | "interactive";
+type ManualType = "owner" | "navigation";
 
 /** Minimal CSV parser: handles quoted fields, escaped quotes and commas inside quotes */
 function parseCsv(text: string): ManifestRow[] {
@@ -60,17 +62,14 @@ function parseCsv(text: string): ManifestRow[] {
   return body.map((r) => Object.fromEntries(header.map((h, i) => [h, r[i] ?? ""])) as ManifestRow);
 }
 
-/** File code from the manual URL: .../BTYA2626OMEN.PDF -> BTYA2626OMEN, .../B3S52626IOM/enu/index.HTML -> B3S52626IOM */
+/** File code from the manual URL: .../BTYA2626OMEN.PDF -> BTYA2626OMEN */
 function docCodeFromUrl(url: string): string {
-  const parts = new URL(url).pathname.split("/");
-  const file = parts[parts.length - 1];
-  return /^index\./i.test(file) ? parts[parts.length - 3] : file.replace(/\.[^.]+$/, "");
+  const file = new URL(url).pathname.split("/").pop()!;
+  return file.replace(/\.[^.]+$/, "");
 }
 
 function manualTypeFromTitle(title: string): ManualType {
-  if (/interactive/i.test(title)) return "interactive";
-  if (/navigation/i.test(title)) return "navigation";
-  return "owner";
+  return /navigation/i.test(title) ? "navigation" : "owner";
 }
 
 /** "2022 MDX Owner's Manual (Revised 2021-12-16)" -> { title: "2022 MDX Owner's Manual", edition: "Revised 2021-12-16" } */
@@ -99,10 +98,13 @@ async function main() {
     process.exit(1);
   }
 
-  const rows = yearDirs.flatMap((d) =>
+  const allRows = yearDirs.flatMap((d) =>
     parseCsv(readFileSync(join(dir, d, "manifest.csv"), "utf-8")).map((row) => ({ ...row, yearDir: d })),
   );
-  console.log(`Read ${rows.length} manifest rows from ${yearDirs.length} years`);
+  const rows = allRows.filter((row) => /\.pdf$/i.test(row.url));
+  console.log(
+    `Read ${allRows.length} manifest rows from ${yearDirs.length} years (${allRows.length - rows.length} non-PDF rows skipped)`,
+  );
 
   // Manuals first, once per doc_code
   const manualIds = new Map<string, number>();
@@ -111,9 +113,9 @@ async function main() {
     if (manualIds.has(docCode)) continue;
 
     const { title, edition } = splitEdition(row.title);
-    const format = /\.pdf$/i.test(row.url) ? "pdf" : "html";
     const pdfPath = join(dir, row.yearDir, "raw", `${docCode}.PDF`);
-    if (format === "pdf" && !existsSync(pdfPath)) {
+    const hasPdf = existsSync(pdfPath);
+    if (!hasPdf) {
       console.warn(`Warning: ${docCode} has no local PDF at ${pdfPath}; seeding it without a hash`);
     }
 
@@ -123,9 +125,8 @@ async function main() {
       year: Number(row.year),
       language: LANGUAGE,
       edition,
-      format,
       sourceUrl: row.url,
-      sha256: format === "pdf" && existsSync(pdfPath) ? await sha256(pdfPath) : null,
+      sha256: hasPdf ? await sha256(pdfPath) : null,
     } as const;
     const manual = await db.orm.public.Manual.upsert({
       create: { docCode, ...fields },

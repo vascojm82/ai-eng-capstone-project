@@ -26,7 +26,6 @@ model Manual {
   year       Int
   language   String             @default("en-US")
   edition    String?
-  format     ManualFormat
   sourceUrl  String             @map("source_url")
   sha256     String?            @unique
   pageCount  Int?               @map("page_count")
@@ -65,10 +64,4 @@ model Chunk {
 enum ManualType {
   owner
   navigation
-  interactive
-}
-
-enum ManualFormat {
-  pdf
-  html
 }

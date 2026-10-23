@@ -25,19 +25,6 @@
     "namespaces": {
       "public": {
         "enum": {
-          "ManualFormat": {
-            "codecId": "pg/text@1",
-            "members": [
-              {
-                "name": "pdf",
-                "value": "pdf"
-              },
-              {
-                "name": "html",
-                "value": "html"
-              }
-            ]
-          },
           "ManualType": {
             "codecId": "pg/text@1",
             "members": [
@@ -48,10 +35,6 @@
               {
                 "name": "navigation",
                 "value": "navigation"
-              },
-              {
-                "name": "interactive",
-                "value": "interactive"
               }
             ]
           }
@@ -164,19 +147,6 @@
                   "kind": "scalar"
                 }
               },
-              "format": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                },
-                "valueSet": {
-                  "entityKind": "enum",
-                  "entityName": "ManualFormat",
-                  "namespaceId": "public",
-                  "plane": "domain"
-                }
-              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -286,9 +256,6 @@
                 },
                 "edition": {
                   "column": "edition"
-                },
-                "format": {
-                  "column": "format"
                 },
                 "id": {
                   "column": "manual_id"
@@ -574,13 +541,8 @@
             "manuals": {
               "checks": [
                 {
-                  "expression": "\"format\" IN ('pdf', 'html')",
-                  "name": "manuals_format_check_b07f7c0c",
-                  "prefix": "manuals_format_check"
-                },
-                {
-                  "expression": "\"manual_type\" IN ('owner', 'navigation', 'interactive')",
-                  "name": "manuals_manual_type_check_939c4278",
+                  "expression": "\"manual_type\" IN ('owner', 'navigation')",
+                  "name": "manuals_manual_type_check_7816d067",
                   "prefix": "manuals_manual_type_check"
                 }
               ],
@@ -594,17 +556,6 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": true
-                },
-                "format": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": false,
-                  "valueSet": {
-                    "entityKind": "valueSet",
-                    "entityName": "ManualFormat",
-                    "namespaceId": "public",
-                    "plane": "storage"
-                  }
                 },
                 "ingested_at": {
                   "codecId": "pg/timestamptz-string@1",
@@ -837,19 +788,11 @@
             }
           },
           "valueSet": {
-            "ManualFormat": {
-              "kind": "valueSet",
-              "values": [
-                "pdf",
-                "html"
-              ]
-            },
             "ManualType": {
               "kind": "valueSet",
               "values": [
                 "owner",
-                "navigation",
-                "interactive"
+                "navigation"
               ]
             }
           }
@@ -858,7 +801,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "672597b628f9dfd4607980009b307615683fe7684993b316c8fc15a30f31ec69"
+    "storageHash": "b2836d39d80b94afd1e9de968455bc3fa804d5865bb6ba34b0c08e050bc7bf88"
   },
   "capabilities": {
     "postgres": {

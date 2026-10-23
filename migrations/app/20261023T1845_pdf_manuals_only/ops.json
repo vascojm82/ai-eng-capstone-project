@@ -1,0 +1,171 @@
+[
+  {
+    "id": "dropCheckConstraint.manuals.manuals_format_check_b07f7c0c",
+    "label": "Drop check constraint \"manuals_format_check_b07f7c0c\" on \"manuals\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "manuals_format_check_b07f7c0c",
+        "table": "manuals"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"manuals_format_check_b07f7c0c\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "manuals_format_check_b07f7c0c",
+          "public",
+          "\"public\".\"manuals\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"manuals_format_check_b07f7c0c\"",
+        "sql": "ALTER TABLE \"public\".\"manuals\" DROP CONSTRAINT \"manuals_format_check_b07f7c0c\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"manuals_format_check_b07f7c0c\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "manuals_format_check_b07f7c0c",
+          "public",
+          "\"public\".\"manuals\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropCheckConstraint.manuals.manuals_manual_type_check_939c4278",
+    "label": "Drop check constraint \"manuals_manual_type_check_939c4278\" on \"manuals\"",
+    "operationClass": "widening",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "manuals_manual_type_check_939c4278",
+        "table": "manuals"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"manuals_manual_type_check_939c4278\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "manuals_manual_type_check_939c4278",
+          "public",
+          "\"public\".\"manuals\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"manuals_manual_type_check_939c4278\"",
+        "sql": "ALTER TABLE \"public\".\"manuals\" DROP CONSTRAINT \"manuals_manual_type_check_939c4278\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"manuals_manual_type_check_939c4278\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "manuals_manual_type_check_939c4278",
+          "public",
+          "\"public\".\"manuals\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "dropColumn.manuals.format",
+    "label": "Drop column \"format\" from \"manuals\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "format",
+        "table": "manuals"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"format\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "manuals",
+          "format"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"format\"",
+        "sql": "ALTER TABLE \"public\".\"manuals\" DROP COLUMN \"format\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"format\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "manuals",
+          "format"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.manuals.manuals_manual_type_check_7816d067",
+    "label": "Add check constraint \"manuals_manual_type_check_7816d067\" on \"manuals\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "manuals_manual_type_check_7816d067",
+        "table": "manuals"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"manuals_manual_type_check_7816d067\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "manuals_manual_type_check_7816d067",
+          "public",
+          "\"public\".\"manuals\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"manuals_manual_type_check_7816d067\"",
+        "sql": "ALTER TABLE \"public\".\"manuals\" ADD CONSTRAINT \"manuals_manual_type_check_7816d067\" CHECK (\"manual_type\" IN ('owner', 'navigation'))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify check constraint \"manuals_manual_type_check_7816d067\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4)) AS \"result\"",
+        "params": [
+          "manuals_manual_type_check_7816d067",
+          "public",
+          "\"public\".\"manuals\"",
+          "c"
+        ]
+      }
+    ]
+  }
+]
