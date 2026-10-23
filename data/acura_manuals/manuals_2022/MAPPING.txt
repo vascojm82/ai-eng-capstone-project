@@ -1,0 +1,95 @@
+2022 Acura manuals: PDF -> model/trims
+10 unique PDFs cover 31 model/trim combinations.
+Ingest each PDF once; every trim listed under it uses that same file.
+
+BTX62222NM.PDF (8.3 MB)
+  2022 ILX Navigation Manual
+    - 8 Speed Dual-Clutch
+    - with Premium 8 Speed Dual-Clutch
+    - with Premium and A-Spec Package 8 Speed Dual-Clutch
+    - with Technology and A-Spec Package 8 Speed Dual-Clutch
+
+BTX62222OMEN.PDF (32.5 MB)
+  2022 ILX Owner's Manual
+    - 8 Speed Dual-Clutch
+    - with Premium 8 Speed Dual-Clutch
+    - with Premium and A-Spec Package 8 Speed Dual-Clutch
+    - with Technology and A-Spec Package 8 Speed Dual-Clutch
+
+BTYA2222NMEN.PDF (4.1 MB)
+  2022 MDX Navigation Manual (Revised Nov-2023)
+    - 10 Speed Automatic
+    - SH-AWD 10 Speed Automatic
+    - TECH 10 Speed Automatic
+    - SH-AWD TECH 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - SH-AWD TYPE S 10 Speed Automatic
+    - SH-AWD TYPE S ADVANCE 10 Speed Automatic
+
+BTYA2222OM.PDF (25.8 MB)
+  2022 MDX Owner's Manual (Revised 2021-12-16)
+    - 10 Speed Automatic
+    - SH-AWD 10 Speed Automatic
+    - TECH 10 Speed Automatic
+    - SH-AWD TECH 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - SH-AWD TYPE S 10 Speed Automatic
+    - SH-AWD TYPE S ADVANCE 10 Speed Automatic
+
+BT6N2222NM.PDF (8.0 MB)
+  2022 NSX Navigation Manual
+    - TYPE S 9 Speed Dual-Clutch
+
+BT6N2222OM.PDF (17.6 MB)
+  2022 NSX Owner's Manual
+    - TYPE S 9 Speed Dual-Clutch
+
+BTJB2222NMEN.PDF (2.7 MB)
+  2022 RDX Navigation Manual
+    - 10 Speed Automatic
+    - SH-AWD 10 Speed Automatic
+    - TECH 10 Speed Automatic
+    - SH-AWD TECH 10 Speed Automatic
+    - A-SPEC 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - SH-AWD A-SPEC ADV 10 Speed Automatic
+    - SH-AWD PMC 10 Speed Automatic
+
+BTJB2222OM.PDF (26.8 MB)
+  2022 RDX Owner's Manual
+    - 10 Speed Automatic
+    - SH-AWD 10 Speed Automatic
+    - TECH 10 Speed Automatic
+    - SH-AWD TECH 10 Speed Automatic
+    - A-SPEC 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - SH-AWD A-SPEC ADV 10 Speed Automatic
+    - SH-AWD PMC 10 Speed Automatic
+
+BTGV2222NM.PDF (4.0 MB)
+  2022 TLX Navigation Manual
+    - 10 Speed Automatic
+    - SH-AWD 10 Speed Automatic
+    - TECH 10 Speed Automatic
+    - SH-AWD TECH 10 Speed Automatic
+    - A-SPEC 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - TYPE S 10 Speed Automatic
+    - TYPE S PERF TIRE 10 Speed Automatic
+
+BTGV2222OM.PDF (29.1 MB)
+  2022 TLX Owner's Manual
+    - 10 Speed Automatic
+    - SH-AWD 10 Speed Automatic
+    - TECH 10 Speed Automatic
+    - SH-AWD TECH 10 Speed Automatic
+    - A-SPEC 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - TYPE S 10 Speed Automatic
+    - TYPE S PERF TIRE 10 Speed Automatic

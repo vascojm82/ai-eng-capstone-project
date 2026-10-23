@@ -1,0 +1,76 @@
+2023 Acura manuals: PDF -> model/trims
+7 unique PDFs cover 28 model/trim combinations.
+Ingest each PDF once; every trim listed under it uses that same file.
+
+B3S52323OMEN.PDF (35.5 MB)
+  2023 Integra Owner's Manual
+    - Continuously Variable Transmission
+    - A-SPEC Continuously Variable Transmission
+    - A-SPEC TECH 6MT 6 Speed Manual
+    - A-SPEC TECH CVT Continuously Variable Transmission
+
+BTYA2323NMEN.PDF (4.1 MB)
+  2023 MDX Navigation Manual (Revised Nov-2023)
+    - 10 Speed Automatic
+    - SH-AWD 10 Speed Automatic
+    - TECH 10 Speed Automatic
+    - SH-AWD TECH 10 Speed Automatic
+    - SH-AWD with A-Spec Package 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - Type S AWD 10 Speed Automatic
+    - Type S AWD with Performance Wheel & Tire 10 Speed Automatic
+
+BTYA2323OM.PDF (26.2 MB)
+  2023 MDX Owner's Manual
+    - 10 Speed Automatic
+    - SH-AWD 10 Speed Automatic
+    - TECH 10 Speed Automatic
+    - SH-AWD TECH 10 Speed Automatic
+    - SH-AWD with A-Spec Package 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - Type S AWD 10 Speed Automatic
+    - Type S AWD with Performance Wheel & Tire 10 Speed Automatic
+
+BTJB2323NMEN.PDF (2.7 MB)
+  2023 RDX Navigation Manual
+    - 10 Speed Automatic
+    - SH-AWD 10 Speed Automatic
+    - TECH 10 Speed Automatic
+    - SH-AWD TECH 10 Speed Automatic
+    - A-SPEC 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - SH-AWD A-SPEC ADV 10 Speed Automatic
+
+BTJB2323OMEN.PDF (32.7 MB)
+  2023 RDX Owner's Manual
+    - 10 Speed Automatic
+    - SH-AWD 10 Speed Automatic
+    - TECH 10 Speed Automatic
+    - SH-AWD TECH 10 Speed Automatic
+    - A-SPEC 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - SH-AWD A-SPEC ADV 10 Speed Automatic
+
+BTGV2323NMEN.PDF (4.3 MB)
+  2023 TLX Navigation Manual
+    - 10 Speed Automatic
+    - TECH 10 Speed Automatic
+    - A-SPEC 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - TYPE S 10 Speed Automatic
+    - TYPE S PERF TIRE 10 Speed Automatic
+    - TYPE S PMC 10 Speed Automatic
+
+BTGV2323OMEN.PDF (35.0 MB)
+  2023 TLX Owner's Manual
+    - 10 Speed Automatic
+    - TECH 10 Speed Automatic
+    - A-SPEC 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - TYPE S 10 Speed Automatic
+    - TYPE S PERF TIRE 10 Speed Automatic
+    - TYPE S PMC 10 Speed Automatic

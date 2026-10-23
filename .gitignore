@@ -5,3 +5,9 @@ dist
 .prisma/
 .prisma-composer/
 .alchemy/
+
+# Manual PDFs stay local (5 GB); manifests, MAPPING.txt and fetch_manuals.py are tracked
+data/acura_manuals/**/raw/
+data/acura_manuals/**/by_trim/
+data/acura_manuals/*.log
+data/acura_manuals/ca_bundle.pem

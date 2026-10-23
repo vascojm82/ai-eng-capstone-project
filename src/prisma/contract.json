@@ -4,6 +4,10 @@
   "target": "postgres",
   "profileHash": "3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2",
   "roots": {
+    "chunks": {
+      "model": "Chunk",
+      "namespace": "public"
+    },
     "manuals": {
       "model": "Manual",
       "namespace": "public"
@@ -53,6 +57,97 @@
           }
         },
         "models": {
+          "Chunk": {
+            "fields": {
+              "content": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "embedding": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/vector@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 1536
+                  }
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "manualId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "page": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "sectionTitle": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "manual": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "manualId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Manual",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "content": {
+                  "column": "content"
+                },
+                "embedding": {
+                  "column": "embedding"
+                },
+                "id": {
+                  "column": "chunk_id"
+                },
+                "manualId": {
+                  "column": "manual_id"
+                },
+                "page": {
+                  "column": "page"
+                },
+                "sectionTitle": {
+                  "column": "section_title"
+                }
+              },
+              "namespaceId": "public",
+              "table": "chunks"
+            }
+          },
           "Manual": {
             "fields": {
               "docCode": {
@@ -63,13 +158,6 @@
                 }
               },
               "edition": {
-                "nullable": true,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
-              "filePath": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
@@ -160,6 +248,21 @@
               }
             },
             "relations": {
+              "chunks": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "manualId"
+                  ]
+                },
+                "to": {
+                  "model": "Chunk",
+                  "namespace": "public"
+                }
+              },
               "vehicles": {
                 "cardinality": "1:N",
                 "on": {
@@ -183,9 +286,6 @@
                 },
                 "edition": {
                   "column": "edition"
-                },
-                "filePath": {
-                  "column": "file_path"
                 },
                 "format": {
                   "column": "format"
@@ -392,6 +492,85 @@
       "public": {
         "entries": {
           "table": {
+            "chunks": {
+              "columns": {
+                "chunk_id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "default": {
+                    "expression": "autoincrement()",
+                    "kind": "function"
+                  },
+                  "nullable": false
+                },
+                "content": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": false
+                },
+                "embedding": {
+                  "codecId": "pg/vector@1",
+                  "dataType": "pgvector/vector",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 1536
+                  }
+                },
+                "manual_id": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                },
+                "page": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
+                  "nullable": false
+                },
+                "section_title": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                }
+              },
+              "foreignKeys": [
+                {
+                  "index": {
+                    "name": "chunks_manual_id_idx_221772fa"
+                  },
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "manual_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "chunks"
+                  },
+                  "target": {
+                    "columns": [
+                      "manual_id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "manuals"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "manual_id"
+                  ],
+                  "name": "chunks_manual_id_idx_221772fa",
+                  "prefix": "chunks_manual_id_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "chunk_id"
+                ]
+              },
+              "uniques": []
+            },
             "manuals": {
               "checks": [
                 {
@@ -412,11 +591,6 @@
                   "nullable": false
                 },
                 "edition": {
-                  "codecId": "pg/text@1",
-                  "dataType": "pg/text",
-                  "nullable": true
-                },
-                "file_path": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": true
@@ -684,7 +858,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "02f392844389ef46e12e2330e88408bf94ec03226e5fd5f103097376b11f3a77"
+    "storageHash": "672597b628f9dfd4607980009b307615683fe7684993b316c8fc15a30f31ec69"
   },
   "capabilities": {
     "postgres": {
@@ -695,6 +869,7 @@
       "lateral": true,
       "limit": true,
       "orderBy": true,
+      "pgvector.cosine": true,
       "returning": true
     },
     "sql": {
@@ -713,7 +888,48 @@
       "scalarList": true
     }
   },
-  "extensions": {},
+  "extensions": {
+    "pgvector": {
+      "capabilities": {
+        "postgres": {
+          "pgvector.cosine": true
+        }
+      },
+      "familyId": "sql",
+      "id": "pgvector",
+      "kind": "extension",
+      "targetId": "postgres",
+      "types": {
+        "codecTypes": {
+          "import": {
+            "alias": "PgVectorTypes",
+            "named": "CodecTypes",
+            "package": "@internal/extension-pgvector/codec-types"
+          },
+          "parameterizedOutputTypes": {
+            "alias": "PgVectorParameterizedOutputTypes",
+            "named": "ParameterizedOutputTypesForTypeParams",
+            "package": "@internal/extension-pgvector/codec-types"
+          }
+        },
+        "operationTypes": {
+          "import": {
+            "alias": "PgVectorOperationTypes",
+            "named": "OperationTypes",
+            "package": "@internal/extension-pgvector/operation-types"
+          }
+        },
+        "queryOperationTypes": {
+          "import": {
+            "alias": "PgVectorQueryOperationTypes",
+            "named": "QueryOperationTypes",
+            "package": "@internal/extension-pgvector/operation-types"
+          }
+        }
+      },
+      "version": "0.0.1"
+    }
+  },
   "meta": {},
   "_generated": {
     "warning": "⚠️  GENERATED FILE - DO NOT EDIT",

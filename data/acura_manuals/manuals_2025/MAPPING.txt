@@ -1,0 +1,59 @@
+2025 Acura manuals: PDF -> model/trims
+7 unique PDFs cover 27 model/trim combinations.
+Ingest each PDF once; every trim listed under it uses that same file.
+
+B3BH2525OMEN.PDF (3.9 MB)
+  2025 ADX Owner's Manual
+    - FWD Continuously Variable Transmission
+    - AWD Continuously Variable Transmission
+    - FWD A-SPEC Continuously Variable Transmission
+    - AWD A-SPEC Continuously Variable Transmission
+    - FWD A-SPEC Advance Continuously Variable Transmission
+    - AWD A-SPEC Advance Continuously Variable Transmission
+
+B3S52525OMEN.PDF (37.4 MB)
+  2025 Integra Owner's Manual
+    - Continuously Variable Transmission
+    - A-SPEC Continuously Variable Transmission
+    - A-SPEC TECH Continuously Variable Transmission
+    - A-SPEC TECH 6 Speed Manual
+    - TYPE S 6 Speed Manual
+
+BTYA2525OMEN.PDF (38.8 MB)
+  2025 MDX Owner's Manual
+    - 10 Speed Automatic
+    - SH-AWD 10 Speed Automatic
+    - TECH 10 Speed Automatic
+    - SH-AWD TECH 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - SH-AWD A-SPEC ADV 10 Speed Automatic
+    - SH-AWD TYPE S ADV 10 Speed Automatic
+
+BTJB2525NMEN.PDF (1.8 MB)
+  2025 RDX Navigation Manual
+    - SH-AWD 10 Speed Automatic
+    - SH-AWD TECH 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - SH-AWD A-SPEC ADV 10 Speed Automatic
+
+BTJB2525OMEN.PDF (32.2 MB)
+  2025 RDX Owner's Manual
+    - SH-AWD 10 Speed Automatic
+    - SH-AWD TECH 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - SH-AWD A-SPEC ADV 10 Speed Automatic
+
+BTGV2525NMEN.PDF (3.4 MB)
+  2025 TLX Navigation Manual
+    - TECH 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - TYPE S 10 Speed Automatic
+
+BTGV2525OMEN.PDF (35.8 MB)
+  2025 TLX Owner's Manual
+    - TECH 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - TYPE S 10 Speed Automatic

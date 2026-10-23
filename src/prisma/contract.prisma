@@ -16,7 +16,8 @@ model Vehicle {
 }
 
 // One row per unique manual. Many trims share the same PDF, so the PDF is
-// stored (and later chunked/embedded) exactly once.
+// stored (and later chunked/embedded) exactly once. The local copy lives at
+// data/acura_manuals/manuals_{year}/raw/{docCode}.PDF.
 model Manual {
   id         Int                @id @default(autoincrement()) @map("manual_id")
   docCode    String             @unique @map("doc_code")
@@ -26,12 +27,12 @@ model Manual {
   language   String             @default("en-US")
   edition    String?
   format     ManualFormat
-  filePath   String?            @map("file_path")
   sourceUrl  String             @map("source_url")
   sha256     String?            @unique
   pageCount  Int?               @map("page_count")
   ingestedAt TimestamptzString? @map("ingested_at")
   vehicles   VehicleManual[]
+  chunks     Chunk[]
 
   @@map("manuals")
 }
@@ -44,6 +45,21 @@ model VehicleManual {
 
   @@id([vehicleId, manualId])
   @@map("vehicle_manuals")
+}
+
+// One searchable passage of a manual PDF, with its embedding for pgvector
+// similarity search. Always filtered by manualId so answers never mix vehicles.
+model Chunk {
+  id           Int                    @id @default(autoincrement()) @map("chunk_id")
+  manual       Manual                 @relation(fields: [manualId], references: [id], onDelete: Cascade)
+  manualId     Int                    @map("manual_id")
+  page         Int
+  sectionTitle String?                @map("section_title")
+  content      String
+  embedding    pgvector.Vector(1536)
+
+  @@index([manualId])
+  @@map("chunks")
 }
 
 enum ManualType {

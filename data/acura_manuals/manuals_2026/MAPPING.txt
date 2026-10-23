@@ -1,0 +1,47 @@
+2026 Acura manuals: PDF -> model/trims
+5 unique PDFs cover 24 model/trim combinations.
+Ingest each PDF once; every trim listed under it uses that same file.
+
+B3BH2626OMEN.PDF (23.7 MB)
+  2026 ADX Owner's Manual
+    - Continuously Variable Transmission
+    - AWD Continuously Variable Transmission
+    - A-Spec Continuously Variable Transmission
+    - A-Spec AWD Continuously Variable Transmission
+    - A-Spec with Advance Package Continuously Variable Transmission
+    - A-Spec with Advance Package AWD Continuously Variable Transmission
+
+B3S52626OMEN.PDF (35.0 MB)
+  2026 Integra Owner's Manual
+    - FWD Continuously Variable Transmission
+    - FWD A-Spec Continuously Variable Transmission
+    - FWD A-Spec with Technology 6 Speed Manual
+    - FWD A-Spec with Technology Continuously Variable Transmission
+    - FWD TYPE S 6 Speed Manual
+
+BTYA2626OMEN.PDF (39.9 MB)
+  2026 MDX Owner's Manual
+    - 10 Speed Automatic
+    - SH-AWD 10 Speed Automatic
+    - with Technology Package 10 Speed Automatic
+    - SH-AWD with Technology Package 10 Speed Automatic
+    - SH-AWD A-Spec 10 Speed Automatic
+    - SH-AWD with Advance Package 10 Speed Automatic
+    - SH-AWD A-Spec with Advance Package 10 Speed Automatic
+    - SH-AWD Type S with Advance Package 10 Speed Automatic
+
+BTJB2626NMEN.PDF (2.7 MB)
+  2026 RDX Navigation Manual
+    - SH-AWD 10 Speed Automatic
+    - SH-AWD with Technology Package 10 Speed Automatic
+    - SH-AWD A-Spec 10 Speed Automatic
+    - SH-AWD with Advance Package 10 Speed Automatic
+    - SH-AWD A-Spec with Advance Package 10 Speed Automatic
+
+BTJB2626OMEN.PDF (32.1 MB)
+  2026 RDX Owner's Manual
+    - SH-AWD 10 Speed Automatic
+    - SH-AWD with Technology Package 10 Speed Automatic
+    - SH-AWD A-Spec 10 Speed Automatic
+    - SH-AWD with Advance Package 10 Speed Automatic
+    - SH-AWD A-Spec with Advance Package 10 Speed Automatic

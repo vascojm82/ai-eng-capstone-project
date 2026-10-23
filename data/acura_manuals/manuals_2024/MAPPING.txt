@@ -1,0 +1,68 @@
+2024 Acura manuals: PDF -> model/trims
+8 unique PDFs cover 25 model/trim combinations.
+Ingest each PDF once; every trim listed under it uses that same file.
+
+B3S52424OMEN.PDF (37.5 MB)
+  2024 Integra Owner's Manual
+    - Continuously Variable Transmission
+    - A-SPEC Continuously Variable Transmission
+    - A-SPEC TECH 6 Speed Manual
+    - A-SPEC TECH Continuously Variable Transmission
+    - TYPE S 6 Speed Manual
+
+BTYA2424NMEN.PDF (4.2 MB)
+  2024 MDX Navigation Manual
+    - 10 Speed Automatic
+    - SH-AWD 10 Speed Automatic
+    - TECH 10 Speed Automatic
+    - SH-AWD TECH 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - SH-AWD TYPE S 10 Speed Automatic
+    - SH-AWD TYPE S ADV 10 Speed Automatic
+
+BTYA2424OMEN.PDF (37.9 MB)
+  2024 MDX Owner's Manual
+    - 10 Speed Automatic
+    - SH-AWD 10 Speed Automatic
+    - TECH 10 Speed Automatic
+    - SH-AWD TECH 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - SH-AWD TYPE S 10 Speed Automatic
+    - SH-AWD TYPE S ADV 10 Speed Automatic
+
+BTJB2424NMEN.PDF (2.7 MB)
+  2024 RDX Navigation Manual
+    - SH-AWD 10 Speed Automatic
+    - SH-AWD TECH 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - SH-AWD A-SPEC ADV 10 Speed Automatic
+
+BTJB2424OMEN.PDF (32.3 MB)
+  2024 RDX Owner's Manual
+    - SH-AWD 10 Speed Automatic
+    - SH-AWD TECH 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - SH-AWD ADVANCE 10 Speed Automatic
+    - SH-AWD A-SPEC ADV 10 Speed Automatic
+
+BTGV2424NMEN.PDF (3.3 MB)
+  2024 TLX Navigation Manual
+    - TECH 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - TYPE S 10 Speed Automatic
+
+BTGV2424OMEN.PDF (35.9 MB)
+  2024 TLX Owner's Manual
+    - TECH 10 Speed Automatic
+    - SH-AWD A-SPEC 10 Speed Automatic
+    - TYPE S 10 Speed Automatic
+
+B36T2424OMEN.PDF (12.7 MB)
+  2024 ZDX Owner's Manual
+    - A-Spec RWD 1 Speed Automatic
+    - A-Spec AWD 1 Speed Automatic
+    - Type S AWD 1 Speed Automatic
+    - Type S AWD with Performance Wheel & Tire 1 Speed Automatic

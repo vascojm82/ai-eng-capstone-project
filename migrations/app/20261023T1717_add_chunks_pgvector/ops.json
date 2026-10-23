@@ -1,0 +1,177 @@
+[
+  {
+    "id": "dropColumn.manuals.file_path",
+    "label": "Drop column \"file_path\" from \"manuals\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "file_path",
+        "table": "manuals"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"file_path\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "manuals",
+          "file_path"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop column \"file_path\"",
+        "sql": "ALTER TABLE \"public\".\"manuals\" DROP COLUMN \"file_path\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"file_path\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "manuals",
+          "file_path"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.chunks",
+    "label": "Create table \"chunks\"",
+    "summary": "Creates table \"chunks\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "chunks"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"chunks\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"chunks\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"chunks\"",
+        "sql": "CREATE TABLE \"public\".\"chunks\" (\n  \"chunk_id\" SERIAL NOT NULL,\n  \"content\" text NOT NULL,\n  \"embedding\" vector(1536) NOT NULL,\n  \"manual_id\" int4 NOT NULL,\n  \"page\" int4 NOT NULL,\n  \"section_title\" text,\n  PRIMARY KEY (\"chunk_id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"chunks\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"chunks\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.chunks.chunks_manual_id_idx_221772fa",
+    "label": "Create index \"chunks_manual_id_idx_221772fa\" on \"chunks\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "chunks_manual_id_idx_221772fa",
+        "table": "chunks"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"chunks_manual_id_idx_221772fa\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"chunks_manual_id_idx_221772fa\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"chunks_manual_id_idx_221772fa\"",
+        "sql": "CREATE INDEX \"chunks_manual_id_idx_221772fa\" ON \"public\".\"chunks\" (\"manual_id\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"chunks_manual_id_idx_221772fa\" exists on \"chunks\" with the planned definition",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" INNER JOIN \"pg_index\" AS \"i\" ON \"i\".\"indexrelid\" = \"c\".\"oid\" INNER JOIN \"pg_am\" AS \"m\" ON \"m\".\"oid\" = \"c\".\"relam\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3) AND \"i\".\"indrelid\" = to_regclass($4) AND NOT (\"i\".\"indisunique\") AND \"m\".\"amname\" = $5 AND (\"i\".\"indexprs\" IS NULL AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"i\".\"indkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"i\".\"indrelid\" AND key_attribute.attnum = key_column.attnum) = ($6)::jsonb) AND \"i\".\"indpred\" IS NULL)) AS \"result\"",
+        "params": [
+          "\"public\".\"chunks_manual_id_idx_221772fa\"",
+          "i",
+          "I",
+          "\"public\".\"chunks\"",
+          "btree",
+          "[\"manual_id\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.chunks.chunks_manual_id_fkey",
+    "label": "Add foreign key \"chunks_manual_id_fkey\" on \"chunks\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "chunks_manual_id_fkey",
+        "table": "chunks"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"chunks_manual_id_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "chunks_manual_id_fkey",
+          "public",
+          "\"public\".\"chunks\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"chunks_manual_id_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"chunks\"\nADD CONSTRAINT \"chunks_manual_id_fkey\"\nFOREIGN KEY (\"manual_id\")\nREFERENCES \"public\".\"manuals\" (\"manual_id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"chunks_manual_id_fkey\" exists with the planned columns, referenced table and actions",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb AND \"c\".\"confrelid\" = to_regclass($6) AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"confkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"confrelid\" AND key_attribute.attnum = key_column.attnum) = ($7)::jsonb AND \"c\".\"confdeltype\" = $8 AND \"c\".\"confupdtype\" = $9)) AS \"result\"",
+        "params": [
+          "chunks_manual_id_fkey",
+          "public",
+          "\"public\".\"chunks\"",
+          "f",
+          "[\"manual_id\"]",
+          "\"public\".\"manuals\"",
+          "[\"manual_id\"]",
+          "c",
+          "a"
+        ]
+      }
+    ]
+  }
+]
