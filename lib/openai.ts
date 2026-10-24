@@ -1,12 +1,29 @@
 import "./env.ts";
 import OpenAI from "openai";
 
-// One client for every OpenAI call, honoring OPENAI_BASE_URL (the bootcamp's
-// LiteLLM proxy) as well as OPENAI_API_KEY.
-export const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_BASE_URL,
-});
+// One client for every OpenAI call. Locally the settings come from .env
+// (OPENAI_API_KEY, and OPENAI_BASE_URL for a proxy); on Prisma the server
+// passes them in with configureOpenAI() (see lib/config.ts). The client is
+// created on first use, not at import: the OpenAI SDK throws when the key is
+// missing, and the server must still start (and answer 503) without one.
+type OpenAISettings = { apiKey?: string; baseURL?: string };
+
+let settings: OpenAISettings | null = null;
+let client: OpenAI | null = null;
+
+export function configureOpenAI(next: OpenAISettings) {
+  settings = next;
+  client = null;
+}
+
+export function openai(): OpenAI {
+  const { apiKey, baseURL } = settings ?? {
+    apiKey: process.env.OPENAI_API_KEY,
+    baseURL: process.env.OPENAI_BASE_URL || undefined,
+  };
+  client ??= new OpenAI({ apiKey, baseURL });
+  return client;
+}
 
 export const EMBEDDING_MODEL = "text-embedding-3-small";
 
@@ -20,7 +37,7 @@ export async function createEmbedding(text: string): Promise<number[]> {
 }
 
 export async function createEmbeddings(texts: string[]): Promise<number[][]> {
-  const response = await openai.embeddings.create({
+  const response = await openai().embeddings.create({
     model: EMBEDDING_MODEL,
     input: texts,
     dimensions: EMBEDDING_DIMENSIONS,

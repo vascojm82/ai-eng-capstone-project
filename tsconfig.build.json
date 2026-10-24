@@ -6,5 +6,5 @@
     "rootDir": ".",
     "rewriteRelativeImportExtensions": true
   },
-  "include": ["server.ts", "routes/**/*.ts", "lib/**/*.ts", "src/**/*.ts"]
+  "include": ["server.ts", "service.ts", "routes/**/*.ts", "lib/**/*.ts", "src/**/*.ts"]
 }
