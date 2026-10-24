@@ -24,7 +24,7 @@ router.post("/search", async (req, res) => {
     return;
   }
   try {
-    const { db, openai } = appConfig();
+    const { db, openai } = await appConfig();
     if (!db || !openai) {
       res.status(503).json({ error: "Search is not configured on this server (database or OpenAI settings missing)" });
       return;
