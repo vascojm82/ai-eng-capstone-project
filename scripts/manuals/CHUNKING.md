@@ -116,6 +116,28 @@ Honda draws small icons with special symbol fonts. Because the letters of ordina
 | IBMPlexSansJP (ADX) | `≫` note marker | `Note:` |
 | Wingdings, GM `omsym…` | button symbols | removed |
 
+### Pages with tables side by side
+
+Some Honda pages hold several tables next to each other. The Specifications pages are the main case:
+
+```
+■Automatic Transmission Fluid   ■Engine Oil                    ■Tire
+Specified  Acura ATF-Type 2.0   Recommended ·0W-20             Size     275/40R21 107H
+Capacity   Change 3.9 US qt     Capacity  Change 5.2 US qt     Regular  35 psi (240 kPa)
+                                          Change including     Compact
+■Rear Differential Fluid                  filter 5.5 US qt     Spare    60 psi (420 kPa)
+…                               ■Engine Coolant …
+```
+
+Read line by line across the page, the rows of different tables get mixed: the transmission fluid's "3.9 US qt" ended up next to "Engine Oil", and the right-hand table was taken for side notes. An LLM reading that text quoted the wrong capacity.
+
+So when **two or more `■` headings share a line**, the page is treated as a table page:
+
+- **Column by column:** each column starts at one of those headings and is read top to bottom, one column after the other.
+- **No side notes:** nothing on the page is taken for a side note, so the right-hand table stays a table.
+
+The result reads cleanly, e.g. `Engine Oil / ·Acura Genuine Motor Oil 0W-20 … Change 5.2 US qt (4.9 L) Change including 5.5 US qt (5.2 L) filter`. About 150 pages across the 37 manuals are table pages, mostly Specifications and fuse pages.
+
 ---
 
 ## 4. Which pages are skipped
@@ -160,6 +182,29 @@ Notes:
 
 If a page's text is over **~700 tokens** (about 3% of pages: 492 of 16,825), it's split at its subheadings into chunks of about 500 tokens: `■` subheadings in the Honda layout, bold headings in the ADX and GM layouts. Each side note goes with the part it sits next to on the page. A part that is still too long is split between paragraphs. Every part keeps the same `page` and `section_title`, and the subheading is added to the title (e.g. `HFL Menus › Phone menu screen`).
 
+### Table pages: one chunk per table
+
+On table pages with **three or more columns** (the Specifications pages and some voice-command lists), every table becomes its own chunk, whatever the page's length:
+
+```
+Specifications › 3.0 L engine models › Engine Oil       (42 tokens)
+Specifications › 3.0 L engine models › Tire             (64 tokens)
+Specifications › 3.0 L engine models › Engine Coolant   (51 tokens)
+…
+```
+
+A whole Specifications page mixes fluids, oil, tires, wheels and bulbs, so its embedding is an average of all of them and matched no specific question well: a search for "tire pressure" never found the page that holds it. Each small table chunk matches its own questions. Text before the first table (such as "3.0 L engine models") goes with the first table.
+
+Table pages with **two columns** stay one chunk, because their two parts usually belong together, like a fuse box and its table of fuses.
+
+### Section titles
+
+The title comes from the page header (section 3), with three refinements:
+
+- **Engine versions:** the Specifications come in one version per engine, labeled only on their first page ("3.5 L engine models", then "3.0 L engine models"). On table pages that label is added to the title of every page of that version, e.g. `Specifications › 3.0 L engine models › Engine Oil`, so a page that never names its engine still says which one it's for. It isn't carried to a page that names another engine itself (one Integra table covers two engines with footnotes), and "… engine models" labels on ordinary pages are just figure labels, so they're ignored.
+- **Chapter changes:** on pages whose header names only the chapter, the current heading carries over to the next pages of the same chapter, but never into the next chapter.
+- **Chapter title pages:** a chapter's first page has a large title at the top (e.g. "Specifications", 14pt). Any line that starts at the very top of a Honda page counts as header, so these titles are recognized even when they reach slightly below the header band.
+
 ### No overlap
 
 Chunks follow topic boundaries, so they don't need overlapping text the way fixed-size chunks do. A topic that continues on the next page shares the same section path, so the two pages are clearly connected, and both will match a question about that topic.
@@ -190,7 +235,7 @@ To use HFL, you must first pair your Bluetooth-compatible cell phone…
 
 The header tells the embedding model what the passage is about even when the text itself never repeats the topic (a page of steps like "Select Menu. Select Pair." doesn't mention "Bluetooth"). Because the manual already provides this context, no extra LLM calls are needed to write it.
 
-- **Model:** `text-embedding-3-small`, 1,536 dimensions, through the bootcamp's LiteLLM proxy (`OPENAI_BASE_URL`).
+- **Model:** OpenAI's `text-embedding-3-small`, 1,536 dimensions. Locally the requests go through the bootcamp's LiteLLM proxy (`OPENAI_BASE_URL`), which forwards them to the same model.
 - **Batching:** about 100 chunks per request.
 - **Re-running:** a manual is re-processed by deleting its chunks and inserting the new ones in one transaction, so re-running never leaves duplicates or a half-processed manual.
 
@@ -202,9 +247,9 @@ Measured on the output of `npm run manuals:chunk`:
 
 | | Result |
 |---|---|
-| Chunks | 16,222 for all 37 PDFs |
-| Chunks per manual | 83–154 (navigation) to 356–749 (owner's) |
-| Tokens per chunk | median 236, 90% under 434, maximum 700 |
+| Chunks | 16,651 for all 37 PDFs |
+| Chunks per manual | 83–154 (navigation) to 356–769 (owner's) |
+| Tokens per chunk | median 229, 90% under 430, maximum 700 |
 | Tokens to embed | about 4.1 million |
 | Embedding cost | about $0.08 with `text-embedding-3-small` |
 | Run time | about 80 seconds for all 37 PDFs |
@@ -229,8 +274,10 @@ The usual default is to cut the text every ~500 tokens with some overlap. For th
 
 ## 10. Known edge cases
 
-- **Values for different engines or trims:** e.g. oil capacity *5.6 US qt* for the 3.5 L engine and *5.5 US qt* for the 3.0 L. Figure labels are placed by their height on the page, so each value follows its label. These pages are worth checking by hand in the test (section 11).
-- **Tables:** a row's label and its description use different font sizes but sit side by side, so they're kept on one line (e.g. "Keypad Enter a phone number to dial.").
+- **Values for different engines or trims:** e.g. oil capacity *5.6 US qt* for the 3.5 L engine and *5.5 US qt* for the 3.0 L. Figure labels are placed by their height on the page, so each value follows its label. In the Specifications, the engine is in the section title (see "Section titles"), and tables that cover several engines say so with footnotes (`*1: 2.0 L engine models`), which are kept.
+- **Table rows:** a row's label and its description use different font sizes but sit side by side, so they're kept on one line (e.g. "Keypad Enter a phone number to dial.").
+- **Cells inside a table** can still come out in a slightly unusual order (e.g. `Regular Pressure / 35 (240 [2.4]) / psi (kPa [kgf/cm2])`), but each value stays inside its own table, next to its label.
+- **Warning boxes side by side** on a few pages (e.g. "Automatic Brake Hold" in some manuals) count as table columns, so each warning becomes its own chunk titled `… › ⚠WARNING`. Each one is a complete warning, and its text names the feature.
 - **Illustration callouts:** labels spread around a picture (e.g. "Bluetooth Indicator", "Battery Level") are kept as separate lines; their order follows the picture top to bottom and may not match how a person would read it.
 - **Front-matter pages:** the welcome pages before the first section (PDF pages 2–5 of most owner's manuals) have no section path or heading, so their `section_title` is empty (83 chunks). Their embedding header still names the manual.
 - **GM warning boxes** continue across pages with "Warning (Continued)"; that text is part of the content and is kept.

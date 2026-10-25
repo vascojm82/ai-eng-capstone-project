@@ -60,6 +60,8 @@ type Layout = {
 const LAYOUTS: Record<Family, Layout> = {
   honda: {
     headerBottom: 0.08,
+    // A tall chapter title ("Specifications", 14pt) can end just below the header band, so a line starting at the very top counts too
+    isHeader: (l, page) => l.y0 < 0.04 * page.height || l.y1 < 0.08 * page.height,
     footerTop: 0.935,
     notesLeft: 0.6,
     tabMargin: 0.045,
@@ -91,6 +93,29 @@ function detectFamily(pages: Page[]): Family {
   if (fonts.some((f) => f.startsWith("GMGlobal"))) return "gm";
   if (fonts.some((f) => f.startsWith("IBMPlex"))) return "adx";
   return "honda";
+}
+
+/**
+ * Honda pages with tables side by side, like the Specifications pages
+ * ("■Automatic Transmission Fluid", "■Engine Oil" and "■Tire" in three
+ * columns): reading them row by row across the page would mix the tables'
+ * cells, and the right-hand table would be taken for side notes. When two
+ * "■" headings share a line, the page is read column by column instead,
+ * each column starting at one of the headings, with no side notes.
+ */
+function withTableColumns(page: Page, layout: Layout): Layout {
+  const headings = page.lines.filter(
+    (l) =>
+      l.text.startsWith("■") && l.y0 > layout.headerBottom * page.height && l.y0 < layout.footerTop * page.height,
+  );
+  const sideBySide = headings.some((a) => headings.some((b) => Math.abs(a.y0 - b.y0) < 3 && b.x0 - a.x0 > 100));
+  if (!sideBySide) return layout;
+
+  const starts: number[] = [];
+  for (const x of headings.map((l) => l.x0).sort((a, b) => a - b)) {
+    if (starts.length === 0 || x - starts[starts.length - 1] > 100) starts.push(x);
+  }
+  return { ...layout, notesLeft: null, columns: starts.slice(1).map((x) => (x - 5) / page.width) };
 }
 
 // ---------------------------------------------------------------------------
@@ -208,6 +233,8 @@ function cleanText(text: string): string {
 function headerTitle(family: Family, header: Line[]): { title: string | null; chapterOnly: boolean } {
   const lines = [...header]
     .sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0)
+    // GM pages print the page number on the header's line ("Driving and Operating 207") or on its own ("208")
+    .map((l) => (family === "gm" ? { ...l, text: l.text.replace(/^\d+\s+|\s+\d+$/g, "") } : l))
     .filter((l) => !/^\d+$/.test(l.text)) // the page number
     .filter((l, i, all) => all.findIndex((o) => o.text === l.text) === i); // a running head printed twice
   const path = (text: string, sep: string) =>
@@ -353,17 +380,32 @@ function splitParagraphs(text: string): string[] {
  */
 type TitleFor = (group: Segment[], before: Segment[], whole: boolean) => string | null;
 
-/** Build the chunks of one page: one chunk, or several when it's longer than MAX_TOKENS */
-function pageChunks(segs: Segment[], notes: Note[], titleFor: TitleFor): { sectionTitle: string | null; content: string }[] {
+/**
+ * Build the chunks of one page: one chunk, or several when it's longer than
+ * MAX_TOKENS. With `onePerTable` (pages of side-by-side tables, like the
+ * Specifications) every table becomes its own chunk, whatever the page's
+ * length: a page mixing fluids, tires and bulbs would match none of them
+ * well, while a "Tire" chunk matches tire questions.
+ */
+function pageChunks(
+  segs: Segment[],
+  notes: Note[],
+  titleFor: TitleFor,
+  onePerTable = false,
+): { sectionTitle: string | null; content: string }[] {
   const whole = segs.map(segmentText).join("\n\n") + notesText(notes);
-  if (estimateTokens(whole) <= MAX_TOKENS) return [{ sectionTitle: titleFor(segs, [], true), content: whole.trim() }];
+  if (!onePerTable && estimateTokens(whole) <= MAX_TOKENS) {
+    return [{ sectionTitle: titleFor(segs, [], true), content: whole.trim() }];
+  }
 
-  // Pack consecutive segments into groups of about TARGET_TOKENS
+  // Pack consecutive segments into groups of about TARGET_TOKENS, or one per table
   const groups: Segment[][] = [];
   for (const seg of segs) {
     const group = groups[groups.length - 1];
     const size = group ? estimateTokens(group.map(segmentText).join("\n\n") + segmentText(seg)) : Infinity;
-    if (group && size <= TARGET_TOKENS) group.push(seg);
+    // A table page's text before its first table (e.g. "3.5 L engine models") goes with that table
+    const joins = onePerTable ? group !== undefined && group.every((s) => !s.heading) : size <= TARGET_TOKENS;
+    if (group && joins) group.push(seg);
     else groups.push([seg]);
   }
 
@@ -396,14 +438,18 @@ type ManualStats = {
 function chunkManual(docCode: string, manualTitle: string, pdfPath: string): { chunks: Chunk[]; stats: ManualStats } {
   const pages = [...readPages(pdfPath)];
   const family = detectFamily(pages);
-  const layout = LAYOUTS[family];
+  const familyLayout = LAYOUTS[family];
   const chunks: Chunk[] = [];
   const skipped: Record<string, number> = {};
 
   let carriedTitle: string | null = null; // section path of the previous page, for pages without one
   let carriedHeading: string | null = null; // last heading seen, for layouts whose header names only the chapter
+  let carriedChapter: string | null = null; // the chapter carriedHeading belongs to
+  let qualifier: string | null = null; // e.g. "3.0 L engine models", for the pages of a section it labels
+  let qualifierSection: string | null = null; // the header those pages share
 
   for (const page of pages) {
+    const layout = family === "honda" ? withTableColumns(page, familyLayout) : familyLayout;
     const zones = splitZones(page, layout);
     const reason = skipReason(zones);
     if (reason) {
@@ -431,14 +477,37 @@ function chunkManual(docCode: string, manualTitle: string, pdfPath: string): { c
     // heading. Front-matter pages before the first header use their own first heading.
     const { title: fromHeader, chapterOnly } = headerTitle(family, zones.header);
     const firstHeading = segs.find((s) => s.heading)?.heading ?? null;
-    const inherited = carriedHeading;
+    // A heading continues onto the next pages of the same chapter only
+    const inherited: string | null = fromHeader !== null && fromHeader === carriedChapter ? carriedHeading : null;
     const chapterHeading = segs[0]?.heading ?? inherited ?? firstHeading;
-    const pageTitle: string | null =
+    const baseTitle: string | null =
       fromHeader && chapterOnly
         ? chapterHeading && chapterHeading !== fromHeader
           ? `${fromHeader} › ${chapterHeading}`
           : fromHeader
         : (fromHeader ?? carriedTitle ?? firstHeading);
+
+    // Specifications come in one version per engine, labeled only on their
+    // first page ("3.5 L engine models", then "3.0 L engine models"). On those
+    // table pages the label goes in the title of every page of the version, so
+    // a page like the 3.0 L engine's fluid table says which engine it's for.
+    // Elsewhere "… engine models" is just a figure label, not a section label.
+    const tablePage = layout !== familyLayout;
+    const label = tablePage
+      ? zones.body.find((l) => /\bengine models$/i.test(l.text) && l.y0 < 0.25 * page.height && l.x0 < 0.2 * page.width)
+      : undefined;
+    if (label) {
+      qualifier = cleanText(label.text);
+      qualifierSection = fromHeader;
+    } else if (
+      !tablePage ||
+      fromHeader !== qualifierSection ||
+      // a page that names another engine itself ("*2: 2.0 L engine models") covers more than one
+      zones.body.some((l) => /\bengine models\b/i.test(l.text) && !l.text.includes(qualifier ?? ""))
+    )
+      qualifier = null;
+    const pageTitle: string | null =
+      qualifier && baseTitle && !baseTitle.includes(qualifier) ? `${baseTitle} › ${qualifier}` : baseTitle;
 
     const titleFor: TitleFor = (group, before, whole) => {
       if (fromHeader && chapterOnly && family !== "honda") {
@@ -452,9 +521,13 @@ function chunkManual(docCode: string, manualTitle: string, pdfPath: string): { c
     };
 
     carriedTitle = titleFor(segs, [], true); // the next page continues this page's full title
-    carriedHeading = [...segs].reverse().find((s) => s.heading)?.heading ?? carriedHeading;
+    carriedHeading = [...segs].reverse().find((s) => s.heading)?.heading ?? inherited;
+    carriedChapter = fromHeader;
 
-    for (const { sectionTitle, content } of pageChunks(segs, notes, titleFor)) {
+    // One chunk per table on pages of three or more table columns (the Specifications). Two
+    // columns are usually one thing in two parts, like a fuse box and its table of fuses.
+    const onePerTable = tablePage && layout.columns.length >= 2;
+    for (const { sectionTitle, content } of pageChunks(segs, notes, titleFor, onePerTable)) {
       if (content.length < MIN_CHARS) continue;
       chunks.push({ docCode, manualTitle, page: page.number, sectionTitle, content, tokens: estimateTokens(content) });
     }

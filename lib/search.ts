@@ -95,6 +95,30 @@ function available(s: Snapshot, year?: number): Record<string, number[]> {
   );
 }
 
+/**
+ * Which vehicles and manuals we have: every model with its years, and, when a
+ * model is given, the manuals covering it (that year only, when a year is given).
+ */
+export async function findManuals(
+  db: Db,
+  filter: { year?: number; model?: string },
+): Promise<{ available: Record<string, number[]>; manuals: ManualRef[] }> {
+  const s = await loadSnapshot(db);
+  const model = filter.model && s.catalog.models.find((m) => m.toLowerCase() === filter.model!.toLowerCase());
+  const yearOk = filter.year === undefined || s.catalog.years.includes(filter.year);
+  const vehicles = model
+    ? s.vehicles.filter((v) => v.model === model && (filter.year === undefined || v.year === filter.year))
+    : [];
+  const manualIds = [...new Set(vehicles.flatMap((v) => s.manualIdsByVehicle.get(v.id) ?? []))];
+  return {
+    available: model ? { [model]: s.yearsByModel[model] } : available(s, yearOk ? filter.year : undefined),
+    manuals: manualIds
+      .map((id) => s.manuals.get(id)!)
+      .sort((a, b) => b.year - a.year || a.type.localeCompare(b.type))
+      .map(({ docCode, title, type, year }) => ({ docCode, title, type, year })),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Search
 // ---------------------------------------------------------------------------

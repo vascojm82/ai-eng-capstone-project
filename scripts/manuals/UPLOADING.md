@@ -146,11 +146,11 @@ Measured on the full upload of all 37 manuals:
 | | Result |
 |---|---|
 | Manuals | 37 |
-| Chunks | 16,222 |
+| Chunks | 16,651 |
 | Tokens embedded | about 4.1 million |
 | Cost | about $0.08 |
 | Time | a few minutes in total (about 2–30 seconds per manual) |
-| Failed requests | none |
+| Failed requests | none (a few rate-limited requests, about 20 per full upload, succeed on their first retry) |
 
 ---
 
@@ -176,7 +176,7 @@ FROM chunks c
 GROUP BY vector_dims(c.embedding);
 ```
 
-This should return a single row: `1536 | 16222`.
+This should return a single row: `1536 | 16651`.
 
 After the first full upload, both checks passed, and a test with five real questions found the right page in the top 5 results every time.
 
