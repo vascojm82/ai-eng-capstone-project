@@ -10,7 +10,9 @@
  * The model decides when to call them: it asks for the vehicle when it doesn't
  * know it, searches once it does, and answers only from the passages found,
  * citing the manual and page. Each call to runAgent() gets the whole
- * conversation, so the server keeps no state between messages.
+ * conversation, so the server keeps no state between messages. The model sees
+ * only the last HISTORY_MESSAGES of it, but the vehicle is looked up in all of
+ * it, so a car named early in a long chat isn't forgotten.
  */
 
 import type OpenAI from "openai";
@@ -26,6 +28,7 @@ import { detectVehicle } from "../lib/vehicles.ts";
 export const CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || "gpt-6-luna";
 const isGpt6 = CHAT_MODEL.startsWith("gpt-6");
 const MAX_TOOL_ROUNDS = 5; // model ↔ tools round trips per message, so a confused model can't loop forever
+const HISTORY_MESSAGES = 5; // the latest user/assistant messages the model sees, the current question included
 const DEFAULT_K = 5;
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
@@ -40,7 +43,62 @@ export type AgentReply = {
   steps: { tool: string; args: unknown; status?: string }[];
 };
 
+/** Put before the manual's steps for engine oil, transmission fluid and brake pad changes */
+const DEALER_NOTICE = "We advise you to set up an appointment to get this done with an Acura dealer.";
+
+/**
+ * Few-shot examples of what the assistant should and shouldn't handle. Each one
+ * is shown to the model in the system prompt: for "reject", the exact reply to
+ * give (without searching); for "answer", why it's in scope, plus a `notice`
+ * the answer must start with, when there is one.
+ */
+const fewShotExamples: { query: string; action: "reject" | "answer"; reason: string; notice?: string }[] = [
+  {
+    query: "What is the capital of Germany",
+    action: "reject",
+    reason: "Please ask a question about Acura cars.",
+  },
+  {
+    query: "Give advice on how to fix my car",
+    action: "reject",
+    reason: "We never advise on fixing the car yourself. Please set up an appointment with an Acura dealer.",
+  },
+  {
+    query: "How do I change the engine oil on my 2026 MDX?",
+    action: "answer",
+    reason: "the owner's manual gives this procedure, so search and answer from it like any other question",
+    notice: DEALER_NOTICE,
+  },
+  {
+    query: "How do I change the transmission fluid on my 2024 RDX?",
+    action: "answer",
+    reason: "search the manual; give its steps if it has them, otherwise say the manual doesn't describe it",
+    notice: DEALER_NOTICE,
+  },
+  {
+    query: "How do I replace the brake pads on my 2025 TLX?",
+    action: "answer",
+    reason: "a planned brake pad change, not a repair: search the manual; give its steps if it has them, otherwise say the manual doesn't describe it",
+    notice: DEALER_NOTICE,
+  },
+];
+
+const SCOPE_RULES = `Scope (check this first, before anything else):
+- You only answer questions about Acura vehicles and their manuals. For anything else (geography, general knowledge, other car brands, coding, …), don't search and don't ask for the vehicle: reply exactly "${fewShotExamples[0].reason}"
+- Don't diagnose or repair problems (strange noises, warning lights that stay on, broken parts, "how do I fix my car"): reply exactly "${fewShotExamples[1].reason}" Procedures the manual itself gives (changing the oil, jump starting, the tire repair kit, replacing a fuse…) are in scope: answer them from the manual.
+- Engine oil changes, transmission fluid (oil) changes and brake pad changes: start the answer with exactly "${DEALER_NOTICE}" on its own line, then give the manual's instructions if it has them (or say the manual doesn't describe the procedure). A planned brake pad change follows this rule, not the repair rule above; a brake problem (noise, a warning light, the brakes not working well) is still a repair. Questions that only ask for a value or an inspection, like the oil capacity, the oil type or how to check brake pad wear, don't get this notice.
+Examples:
+${fewShotExamples
+  .map((e) =>
+    e.action === "reject"
+      ? `- "${e.query}" → reply exactly: "${e.reason}"`
+      : `- "${e.query}" → answer: ${e.reason}${e.notice ? `, starting with "${e.notice}"` : ""}`,
+  )
+  .join("\n")}`;
+
 const SYSTEM_PROMPT = `You are the Acura owner's manual assistant. You answer questions about Acura vehicles using only their official owner's and navigation manuals (model years 2022–2026, US market).
+
+${SCOPE_RULES}
 
 How to work:
 1. You must know the vehicle's model year and model before searching. Look for them in the whole conversation. If they're there, use them: never ask the user to confirm a vehicle they already named. If either is missing, ask for it in one short question instead of guessing. Call find_manuals when you need to know which models and years exist, or to check that the user's vehicle is covered.
@@ -167,6 +225,7 @@ async function knownVehicle(db: Db, conversation: ChatMessage[]): Promise<string
   const catalog = { models: Object.keys(available), years: [...new Set(Object.values(available).flat())] };
   let model: string | undefined;
   let year: number | undefined;
+
   for (const message of [...conversation].reverse()) {
     if (message.role !== "user") continue;
     const found = detectVehicle(message.content, catalog);
@@ -187,11 +246,13 @@ async function knownVehicle(db: Db, conversation: ChatMessage[]): Promise<string
 
 export async function runAgent(db: Db, conversation: ChatMessage[]): Promise<AgentReply> {
   const vehicle = await knownVehicle(db, conversation);
+
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: "system", content: SYSTEM_PROMPT },
     ...(vehicle ? [{ role: "system" as const, content: vehicle }] : []),
-    ...conversation.map((m) => ({ role: m.role, content: m.content })),
+    ...conversation.slice(-HISTORY_MESSAGES).map((m) => ({ role: m.role, content: m.content })),
   ];
+
   const steps: AgentReply["steps"] = [];
   const results: SearchResult[] = [];
 
