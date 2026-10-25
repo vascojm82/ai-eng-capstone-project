@@ -19,7 +19,12 @@ import { openai } from "../lib/openai.ts";
 import { findManuals, searchManuals, type SearchResult } from "../lib/search.ts";
 import { detectVehicle } from "../lib/vehicles.ts";
 
-export const CHAT_MODEL = "gpt-4.1-mini";
+// GPT-6 Luna, the small GPT-6 model, unless OPENAI_CHAT_MODEL picks another one.
+// gpt-4.1-mini, used before, leaves OpenAI's API on January 14, 2027.
+// Among GPT-6 models only Luna and Sol work here: the agent needs reasoning_effort
+// "none" (tools in Chat Completions) and temperature, which Astra and 6.1 Sol reject.
+export const CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || "gpt-6-luna";
+const isGpt6 = CHAT_MODEL.startsWith("gpt-6");
 const MAX_TOOL_ROUNDS = 5; // model ↔ tools round trips per message, so a confused model can't loop forever
 const DEFAULT_K = 5;
 
@@ -133,14 +138,18 @@ function citedPages(reply: string): Set<number> {
   return pages;
 }
 
+/** For comparing titles: "Owner’s" (typographic apostrophe, as some models write it) matches "Owner's" */
+const normalizeTitle = (text: string) => text.replace(/[‘’`´]/g, "'").toLowerCase();
+
 /** The searched pages the reply actually cites, e.g. "(2026 MDX Owner's Manual, p. 634)" */
 function citedSources(reply: string, results: SearchResult[]): Source[] {
   const pages = citedPages(reply);
+  const text = normalizeTitle(reply);
   const seen = new Set<string>();
   const sources: Source[] = [];
   for (const r of results) {
     const key = `${r.manual.docCode}#${r.page}`;
-    const cited = reply.includes(r.manual.title) && pages.has(r.page);
+    const cited = text.includes(normalizeTitle(r.manual.title)) && pages.has(r.page);
     if (!cited || seen.has(key)) continue;
     seen.add(key);
     sources.push({ manual: r.manual.title, docCode: r.manual.docCode, page: r.page, section: r.section, url: r.url });
@@ -166,7 +175,10 @@ async function knownVehicle(db: Db, conversation: ChatMessage[]): Promise<string
     if (model && year !== undefined) break;
   }
   if (model && year !== undefined) {
-    return `The user's vehicle, from the conversation: the ${year} ${model}. Use it in your searches and don't ask the user to confirm it.`;
+    return (
+      `The user's vehicle, from the conversation: the ${year} ${model}. Use it in your searches and don't ask the user to confirm it. ` +
+      `There's no need to call find_manuals for it: search_manuals finds its manuals and reports when there are none.`
+    );
   }
   if (model) return `The user has named the model (${model}) but not the model year yet.`;
   if (year !== undefined) return `The user has named the model year (${year}) but not the model yet.`;
@@ -188,7 +200,12 @@ export async function runAgent(db: Db, conversation: ChatMessage[]): Promise<Age
       model: CHAT_MODEL,
       messages,
       tools: TOOLS,
+      // Low temperature keeps factual answers consistent between requests. GPT-6 models
+      // accept it only with reasoning off (with reasoning on, only the default 1 is allowed)
       temperature: 0.2,
+      // GPT-6 models only accept tools in Chat Completions with reasoning off; reading
+      // passages and citing them doesn't need it
+      ...(isGpt6 && { reasoning_effort: "none" as const }),
     });
     const message = response.choices[0].message;
 
