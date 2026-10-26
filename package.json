@@ -7,14 +7,15 @@
   "scripts": {
     "start": "node dist/server.js",
     "dev": "tsx watch server.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p web/tsconfig.json",
     "ts": "tsx --import ./lib/env.ts",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && tsc -p web/tsconfig.json && vite build --config web/vite.config.ts",
     "contract:emit": "prisma contract emit",
     "db:seed": "tsx --import ./lib/env.ts scripts/db/seed.ts",
     "manuals:chunk": "tsx --import ./lib/env.ts scripts/manuals/chunk.ts",
     "manuals:upload": "tsx --import ./lib/env.ts scripts/manuals/upload.ts",
-    "auth:users": "tsx scripts/auth/create-users.ts"
+    "auth:users": "tsx scripts/auth/create-users.ts",
+    "dev:web": "vite --config web/vite.config.ts"
   },
   "keywords": [],
   "author": "",
@@ -30,11 +31,22 @@
     "openai": "^7.43.0"
   },
   "devDependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^9.5.0",
+    "@mui/material": "^9.5.0",
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
     "mupdf": "^1.28.1",
     "prisma": "8.0.0-rc.25",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-markdown": "^10.1.0",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
   }
 }

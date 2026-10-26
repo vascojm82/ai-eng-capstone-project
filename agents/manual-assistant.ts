@@ -64,6 +64,12 @@ const fewShotExamples: { query: string; action: "reject" | "answer"; reason: str
     reason: "We never advise on fixing the car yourself. Please set up an appointment with an Acura dealer.",
   },
   {
+    // A symptom the manual mentions is still a repair question
+    query: "My 2025 MDX makes a squealing noise when I brake, what's wrong and how do I fix it?",
+    action: "reject",
+    reason: "We never advise on fixing the car yourself. Please set up an appointment with an Acura dealer.",
+  },
+  {
     query: "How do I change the engine oil on my 2026 MDX?",
     action: "answer",
     reason: "the owner's manual gives this procedure, so search and answer from it like any other question",
@@ -83,9 +89,16 @@ const fewShotExamples: { query: string; action: "reject" | "answer"; reason: str
   },
 ];
 
+/**
+ * The fixed replies of the "reject" examples. The prompt asks the model to give
+ * them exactly, but it sometimes adds a sentence or two after them; when a reply
+ * contains one, runAgent() returns just that reply, so the rule holds every time.
+ */
+const REJECT_REPLIES = fewShotExamples.filter((e) => e.action === "reject").map((e) => e.reason);
+
 const SCOPE_RULES = `Scope (check this first, before anything else):
 - You only answer questions about Acura vehicles and their manuals. For anything else (geography, general knowledge, other car brands, coding, …), don't search and don't ask for the vehicle: reply exactly "${fewShotExamples[0].reason}"
-- Don't diagnose or repair problems (strange noises, warning lights that stay on, broken parts, "how do I fix my car"): reply exactly "${fewShotExamples[1].reason}" Procedures the manual itself gives (changing the oil, jump starting, the tire repair kit, replacing a fuse…) are in scope: answer them from the manual.
+- Don't diagnose or repair problems. When the user describes something wrong with the car (a noise, a vibration, a smell, a leak, a warning light that stays on, a part that's broken or doesn't work) and asks what's wrong or how to fix it, don't search, even if the manual mentions that symptom: reply exactly "${fewShotExamples[1].reason}" Procedures the manual itself gives (changing the oil, jump starting, the tire repair kit, replacing a fuse…) are in scope: answer them from the manual.
 - Engine oil changes, transmission fluid (oil) changes and brake pad changes: start the answer with exactly "${DEALER_NOTICE}" on its own line, then give the manual's instructions if it has them (or say the manual doesn't describe the procedure). A planned brake pad change follows this rule, not the repair rule above; a brake problem (noise, a warning light, the brakes not working well) is still a repair. Questions that only ask for a value or an inspection, like the oil capacity, the oil type or how to check brake pad wear, don't get this notice.
 Examples:
 ${fewShotExamples
@@ -216,9 +229,15 @@ function citedSources(reply: string, results: SearchResult[]): Source[] {
 }
 
 /**
- * The vehicle the user has named so far, found in code rather than left to the
- * model (which sometimes asks to confirm a vehicle it was already given). The
- * most recent user message that names a model wins.
+ * The vehicle the user is asking about, found in code rather than left to the
+ * model (which sometimes asks to confirm a vehicle it was already given).
+ *
+ * The user's messages are read newest first. The most recent message that
+ * names a model gives the model. The year comes from that same message, or
+ * from a message that names no model (like "2026", answering "which year?").
+ * A message about a different model ends the search, because its year belongs
+ * to that other car: after "…my 2026 Integra?" and then "…my MDX?", the MDX's
+ * year is unknown, not 2026.
  */
 async function knownVehicle(db: Db, conversation: ChatMessage[]): Promise<string | null> {
   const { available } = await findManuals(db, {});
@@ -229,7 +248,9 @@ async function knownVehicle(db: Db, conversation: ChatMessage[]): Promise<string
   for (const message of [...conversation].reverse()) {
     if (message.role !== "user") continue;
     const found = detectVehicle(message.content, catalog);
-    if (!model && found.models.length === 1) model = found.models[0];
+    const named = found.models.length === 1 ? found.models[0] : undefined;
+    if (model && named && named !== model) break; // an earlier message about another car
+    if (!model && named) model = named;
     if (year === undefined && found.years.length === 1) year = found.years[0];
     if (model && year !== undefined) break;
   }
@@ -239,7 +260,12 @@ async function knownVehicle(db: Db, conversation: ChatMessage[]): Promise<string
       `There's no need to call find_manuals for it: search_manuals finds its manuals and reports when there are none.`
     );
   }
-  if (model) return `The user has named the model (${model}) but not the model year yet.`;
+  if (model) {
+    return (
+      `The user is asking about their ${model} but hasn't said its model year. Ask which year it is before searching. ` +
+      `Don't take the year from a message about a different model.`
+    );
+  }
   if (year !== undefined) return `The user has named the model year (${year}) but not the model yet.`;
   return null;
 }
@@ -272,6 +298,8 @@ export async function runAgent(db: Db, conversation: ChatMessage[]): Promise<Age
 
     if (!message.tool_calls?.length) {
       const reply = message.content?.trim() || "Sorry, I couldn't produce an answer. Please try again.";
+      const rejection = REJECT_REPLIES.find((text) => reply.includes(text));
+      if (rejection) return { reply: rejection, sources: [], steps };
       return { reply, sources: citedSources(reply, results), steps };
     }
 
