@@ -101,7 +101,7 @@ export default function ChatPage({ user, onLoggedOut }: { user: User; onLoggedOu
         <Toolbar sx={{ gap: 1 }}>
           <DirectionsCarIcon />
           <Typography variant="h6" noWrap sx={{ flexGrow: 1, fontWeight: 600, fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>
-            Manual Assistant
+            Service Assistant
           </Typography>
           <Chip
             icon={<PersonOutlinedIcon />}

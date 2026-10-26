@@ -47,7 +47,7 @@ export default function LoginPage({ onLoggedIn }: { onLoggedIn: (user: User) => 
               <Avatar sx={{ bgcolor: "common.black", width: 56, height: 56 }}>
                 <DirectionsCarIcon fontSize="large" />
               </Avatar>
-              <Typography variant="h5">Manual Assistant</Typography>
+              <Typography variant="h5">Service Assistant</Typography>
               <Typography variant="body2" color="text.secondary" align="center">
                 Answers from Acura owner's and navigation manuals, model years 2022–2026
               </Typography>
