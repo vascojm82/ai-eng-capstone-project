@@ -13,7 +13,8 @@
     "contract:emit": "prisma contract emit",
     "db:seed": "tsx --import ./lib/env.ts scripts/db/seed.ts",
     "manuals:chunk": "tsx --import ./lib/env.ts scripts/manuals/chunk.ts",
-    "manuals:upload": "tsx --import ./lib/env.ts scripts/manuals/upload.ts"
+    "manuals:upload": "tsx --import ./lib/env.ts scripts/manuals/upload.ts",
+    "auth:users": "tsx scripts/auth/create-users.ts"
   },
   "keywords": [],
   "author": "",

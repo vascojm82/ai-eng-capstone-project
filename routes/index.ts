@@ -1,6 +1,8 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { runAgent, type ChatMessage } from "../agents/manual-assistant.ts";
+import { requireAuth } from "../lib/auth.ts";
 import { appConfig } from "../lib/config.ts";
+import { takeQuestion } from "../lib/limits.ts";
 import { searchManuals } from "../lib/search.ts";
 
 const router = Router();
@@ -10,7 +12,18 @@ const MAX_QUERY_LENGTH = 1000;
 const MAX_MESSAGES = 30;
 const MAX_MESSAGE_LENGTH = 4000;
 
-// POST /search { "query": "What's the oil capacity for the 3.0 L engine on a 2026 MDX?", "k": 5 }
+// Everything below needs a logged-in user (see routes/auth.ts for /api/login)
+router.use(requireAuth(async () => (await appConfig()).sessionSecret));
+
+/** Counts the question against the user's and the app's limits; answers 429 and returns false when over */
+function withinLimits(req: Request, res: Response): boolean {
+  const limit = takeQuestion(req.user!.username);
+  if (limit.ok) return true;
+  res.set("Retry-After", String(limit.retryAfterSeconds)).status(429).json({ error: limit.error });
+  return false;
+}
+
+// POST /api/search { "query": "What's the oil capacity for the 3.0 L engine on a 2026 MDX?", "k": 5 }
 router.post("/search", async (req, res) => {
   const { query, k = DEFAULT_K } = req.body ?? {};
 
@@ -26,6 +39,7 @@ router.post("/search", async (req, res) => {
     res.status(400).json({ error: `\`k\` must be an integer from 1 to ${MAX_K}` });
     return;
   }
+  if (!withinLimits(req, res)) return;
   try {
     const { db, openai } = await appConfig();
     if (!db || !openai) {
@@ -43,7 +57,7 @@ router.post("/search", async (req, res) => {
   }
 });
 
-// POST /chat { "messages": [{ "role": "user", "content": "How do I pair my phone with my 2024 ZDX?" }] }
+// POST /api/chat { "messages": [{ "role": "user", "content": "How do I pair my phone with my 2024 ZDX?" }] }
 // The client sends the whole conversation each time (the server keeps no
 // state); the last message must be the user's.
 router.post("/chat", async (req, res) => {
@@ -71,6 +85,7 @@ router.post("/chat", async (req, res) => {
     });
     return;
   }
+  if (!withinLimits(req, res)) return;
   try {
     const { db, openai } = await appConfig();
     if (!db || !openai) {

@@ -21,6 +21,9 @@ export default compute({
     openaiApiKey: secretString(),
     // Optional: without it the OpenAI SDK calls api.openai.com directly
     "openaiBaseUrl?": "string",
+    // Login accounts (username:role:scrypt hash, see lib/auth.ts) and the key that signs session cookies
+    appUsers: secretString(),
+    sessionSecret: secretString(),
   }),
   build: node({
     module: import.meta.url,

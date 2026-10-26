@@ -1,8 +1,8 @@
-// Where the server gets its database and OpenAI settings:
+// Where the server gets its database, OpenAI and login settings:
 //
 // - On Prisma: from the service declaration (service.ts). The database comes
-//   from service.load() and the OpenAI settings from service.input(), which
-//   reads the project's environment variables bound in module.ts.
+//   from service.load() and the OpenAI and login settings from service.input(),
+//   which reads the project's environment variables bound in module.ts.
 // - Locally (npm run dev): from .env, as the scripts do.
 //
 // Prisma passes the service's configuration in COMPOSER_* variables, so their
@@ -14,6 +14,7 @@
 import pgvector from "@prisma/orm-extension-pgvector/runtime";
 import service from "../service.ts";
 import type { db as localDb } from "../src/prisma/db.ts";
+import { parseAccounts } from "./auth.ts";
 import { configureOpenAI } from "./openai.ts";
 
 export type Db = typeof localDb;
@@ -24,6 +25,10 @@ type AppConfig = {
   db: Db | null;
   /** Whether an OpenAI key is configured */
   openai: boolean;
+  /** The login accounts from APP_USERS (empty when not configured) */
+  accounts: ReturnType<typeof parseAccounts>;
+  /** Signs the session cookies; null when not configured */
+  sessionSecret: string | null;
 };
 
 let config: AppConfig | null = null;
@@ -35,10 +40,22 @@ export async function appConfig(): Promise<AppConfig> {
     const { database } = service.load();
     const input = service.input();
     configureOpenAI({ apiKey: input.openaiApiKey.expose(), baseURL: input.openaiBaseUrl || undefined });
-    config = { runningOn: "prisma", db: database.clientWith({ extensions: [pgvector] }), openai: true };
+    config = {
+      runningOn: "prisma",
+      db: database.clientWith({ extensions: [pgvector] }),
+      openai: true,
+      accounts: parseAccounts(input.appUsers.expose()),
+      sessionSecret: input.sessionSecret.expose(),
+    };
   } else {
     const db = process.env.DATABASE_URL ? (await import("../src/prisma/db.ts")).db : null;
-    config = { runningOn: "local", db, openai: Boolean(process.env.OPENAI_API_KEY) };
+    config = {
+      runningOn: "local",
+      db,
+      openai: Boolean(process.env.OPENAI_API_KEY),
+      accounts: parseAccounts(process.env.APP_USERS),
+      sessionSecret: process.env.SESSION_SECRET || null,
+    };
   }
   return config;
 }

@@ -16,6 +16,8 @@ export default module("capstone-project", ({ provision }) => {
     input: {
       openaiApiKey: envSecret("OPENAI_API_KEY"),
       openaiBaseUrl: envParam("OPENAI_BASE_URL"),
+      appUsers: envSecret("APP_USERS"),
+      sessionSecret: envSecret("SESSION_SECRET"),
     },
   });
 });
