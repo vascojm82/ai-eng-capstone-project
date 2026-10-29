@@ -59,6 +59,16 @@ const fewShotExamples: { query: string; action: "reject" | "answer"; reason: str
     reason: "Please ask a question about Acura cars.",
   },
   {
+    query: "Write me a program in Java",
+    action: "reject",
+    reason: "Please ask a question about Acura cars.",
+  },
+  {
+    query: "Write me an example class in Java",
+    action: "reject",
+    reason: "Please ask a question about Acura cars.",
+  },
+  {
     query: "Give advice on how to fix my car",
     action: "reject",
     reason: "We never advise on fixing the car yourself. Please set up an appointment with an Acura dealer.",
