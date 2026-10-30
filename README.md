@@ -57,11 +57,13 @@ It's a retrieval-augmented generation (RAG) app with one agent, a SQL database a
 
 ## 2. Architecture
 
-One Node.js service serves both the React frontend and the API. It uses one PostgreSQL database (with the pgvector extension) for the vehicle catalog and the embeddings, and calls OpenAI for embeddings and chat.
+One Node.js service serves both the React frontend and the API. It uses one PostgreSQL database (with the pgvector extension) for the vehicle catalog and the embeddings, and calls OpenAI for embeddings and chat. Phone calls go through Retell, which answers the call and asks the same agent through `/api/voice/ask` (optional, see [Setup step 6](#6-phone-agent-optional)).
 
 ```mermaid
 flowchart LR
     Browser["Browser<br/>React + Material UI"]
+    Caller["Caller<br/>phone"]
+    Retell["Retell<br/>speech · its LLM (gpt-6-luna) · voice"]
 
     subgraph Service["Express server (one service on Prisma Compute)"]
         Static["Static files<br/>dist/public"]
@@ -69,6 +71,7 @@ flowchart LR
         Limits["Usage limits"]
         Chat["/api/chat"]
         Search["/api/search"]
+        Voice["/api/voice/ask<br/>Retell signature"]
         Agent["Agent<br/>agents/manual-assistant.ts"]
         Lib["Search library<br/>lib/search.ts"]
     end
@@ -80,6 +83,9 @@ flowchart LR
     Browser -->|"POST /api/login"| Auth
     Browser -->|"POST /api/chat"| Limits --> Chat --> Agent
     Browser -->|"POST /api/search"| Limits --> Search --> Lib
+    Caller <-->|"phone call"| Retell
+    Retell -->|"owners_manual_lookup tool"| Voice --> Limits
+    Voice -->|"voice mode"| Agent
     Agent -->|"tools"| Lib
     Agent -->|"chat completions"| OpenAI
     Lib -->|"embed the question"| OpenAI
@@ -96,6 +102,7 @@ flowchart LR
 | AI | OpenAI `gpt-6-luna` (agent), `text-embedding-3-small` (1,536-dimension embeddings) |
 | PDF processing | MuPDF.js (layout-aware text extraction) |
 | Hosting | Prisma Compute (app) + Prisma Postgres (database), deployed from GitHub Actions |
+| Phone (optional) | Retell AI (number, speech-to-text, `gpt-6-luna` conversation, `cartesia-Andrew` voice), `retell-sdk` |
 
 ---
 
@@ -383,7 +390,10 @@ Fill in `.env`:
 OPENAI_API_KEY=sk-...                         # your OpenAI key
 OPENAI_BASE_URL=https://api.openai.com/v1     # optional; set it only to use a proxy
 DATABASE_URL="postgres://USER:PASSWORD@HOST:5432/postgres?sslmode=verify-full"
+RETELL_API_KEY=not-used                       # your Retell key if you set up the phone agent (step 6)
 ```
+
+> `RETELL_API_KEY` is **required on Prisma even without the phone agent**: the pinned Prisma version fails a deploy when a secret is missing. If you don't use the phone agent, any value works (e.g. `not-used`): `/api/voice/ask` then rejects every request with `401`, and the rest of the app is unaffected. Locally it can be left out.
 
 ### 3. A database
 
@@ -428,6 +438,27 @@ npm run manuals:upload
 
 Re-running any step is safe: the seed and the upload replace rows instead of duplicating them, and `manuals:upload` without arguments continues with manuals not uploaded yet.
 
+### 6. Phone agent (optional)
+
+Lets people call a phone number and ask the assistant by voice. [Retell](https://www.retellai.com) answers the call; for every car question its LLM calls the `owners_manual_lookup` tool, which POSTs to your app's [`/api/voice/ask`](#post-apivoiceask-retell-only). Skip this step if you only need the web app. Cost: about $0.09 per minute of call plus about $2 a month for the number (Retell's pricing).
+
+1. **Retell account:** create a workspace in the Retell dashboard, then an API key in it (**Settings → API Keys**). Use the key with the **webhook** badge: it's the one that can verify request signatures. Everything the scripts create goes into the workspace this key belongs to.
+2. **Phone number:** buy one in that workspace (**Phone Numbers**). Do it in the dashboard; the scripts never buy numbers.
+3. **Settings in `.env`:**
+   ```sh
+   RETELL_API_KEY=key_...                                     # step 1
+   RETELL_PHONE_NUMBER=+14155551234                           # step 2, E.164 format
+   RETELL_TOOL_URL=https://<your-app-host>/api/voice/ask      # your deployed app
+   ```
+4. **On Prisma:** set `RETELL_API_KEY` to your real Retell key for production and preview (see [Deploying on Prisma](#one-time-environment-variables-on-prisma)), replacing a `not-used` placeholder if you set one, then deploy. The server needs it to accept Retell's requests; the other two settings are only for the scripts.
+5. **Create the agent:**
+   ```sh
+   npm run voice:setup -- --dry-run   # shows what would be sent to Retell, changes nothing
+   npm run voice:setup                # creates the LLM and the "Service Assistant" agent, assigns it to the number
+   ```
+   It's safe to re-run: it finds the agent by name and updates it. Changes to the agent's prompt, greeting, voice or speed are made in [`scripts/voice/setup-retell.ts`](scripts/voice/setup-retell.ts) and take effect when you run it again.
+6. **Call the number** and try the [phone scenarios](#phone-scenarios). Then turn the line off until you need it: see [Running the demo line](#running-the-demo-line).
+
 ---
 
 ## 11. Running locally
@@ -462,6 +493,45 @@ Open **http://localhost:3000**. Rebuild after every change.
 
 > Both modes use the database and OpenAI key in `.env`, so local questions hit real data and cost a fraction of a cent each.
 
+### Running the demo line
+
+Retell bills per minute only while the number answers, so keep the line off between demos:
+
+```sh
+npm run voice:status   # is the line on?
+npm run voice:on       # before a demo: the number answers with the agent
+npm run voice:off      # after the demo: no agent answers the number
+```
+
+These only change which agent answers the number: the agent, its prompt, voice and tool URL stay as `voice:setup` left them, and you keep the number. After `voice:on`, make one call yourself first: right after a deploy, the first answer can take 10–15 s.
+
+### Testing the phone agent locally
+
+To try changes to `/api/voice/ask` or the agent before deploying, point the Retell tool at your machine with [ngrok](https://ngrok.com) (free account):
+
+```sh
+brew install ngrok && ngrok config add-authtoken <your-token>   # once
+
+npm run dev                                                      # terminal 1: API on port 3000
+ngrok http 3000                                                  # terminal 2: prints https://<id>.ngrok-free.app
+RETELL_TOOL_URL=https://<id>.ngrok-free.app/api/voice/ask npm run voice:setup   # terminal 3
+```
+
+Call the number. Open **http://127.0.0.1:4040** (ngrok's inspector) to see each request Retell sends and the answer your server returns; the server terminal only prints errors. The shell's `RETELL_TOOL_URL` overrides the one in `.env` for that run only.
+
+**When you're done, point the tool back to your deployed app** (otherwise calls fail once ngrok stops):
+
+```sh
+npm run voice:setup
+```
+
+```mermaid
+flowchart LR
+    C["Caller"] <--> R["Retell"]
+    R -->|"owners_manual_lookup"| N["ngrok<br/>https://….ngrok-free.app"]
+    N --> E["npm run dev<br/>localhost:3000/api/voice/ask"]
+```
+
 ---
 
 ## 12. Deploying on Prisma
@@ -489,6 +559,8 @@ done
 
 Check with `npx prisma project env list --role production --project capstone-project` (names only, never values).
 
+All but `OPENAI_BASE_URL` are required, `RETELL_API_KEY` included even if you don't use the phone agent: the deploy fails when one is missing. Without a phone agent, set it to any placeholder such as `not-used` (see [Environment variables](#2-environment-variables)).
+
 ### Deploying
 
 Deploys run from GitHub Actions ([`.github/workflows/prisma-deploy.yml`](.github/workflows/prisma-deploy.yml)) through the repository's connection to the Prisma project:
@@ -506,6 +578,7 @@ flowchart LR
 - **`main`** deploys to production.
 - **Any other branch** gets a preview with its own empty database (the app runs, but has no manuals until seeded). Deleting the branch removes the preview.
 - After a deploy, the first request can take 10–15 s (cold start); send a warm-up request before a demo.
+- Deploys don't change anything in Retell. If the app's URL changes, update `RETELL_TOOL_URL` in `.env` and run `npm run voice:setup`.
 
 Useful commands:
 
@@ -612,7 +685,7 @@ rm cookies.txt
 | `DATABASE_URL` | local only | `.env` | Postgres for local runs and scripts (on Prisma the database comes from the service) |
 | `APP_USERS` | yes | `.env`, Prisma (secret) | Accounts: `username:role:scrypt-hash`, comma-separated |
 | `SESSION_SECRET` | yes | `.env`, Prisma (secret) | Signs session cookies |
-| `RETELL_API_KEY` | yes on Prisma; locally only for voice | `.env`, Prisma (secret) | Verifies `/api/voice/ask` signatures (the Retell key with the webhook badge). Its Retell workspace is where the voice scripts create the agent |
+| `RETELL_API_KEY` | yes on Prisma (any placeholder without a phone agent); locally only for voice | `.env`, Prisma (secret) | Verifies `/api/voice/ask` signatures (the Retell key with the webhook badge). Its Retell workspace is where the voice scripts create the agent |
 | `RETELL_PHONE_NUMBER` | voice scripts only | `.env` | The number bought in that Retell workspace (E.164, e.g. `+14155551234`) |
 | `RETELL_TOOL_URL` | `voice:setup` only | `.env` | Your deployed app's `https://<host>/api/voice/ask`, where the phone agent's tool sends questions; override it in the shell for an ngrok test |
 | `PORT` | no | `.env` | Local port (default 3000; Prisma sets it) |
@@ -673,6 +746,21 @@ Log in and try these; each shows a different part of the system.
 | Dealer notice | "How do I change the engine oil on my 2026 MDX?" | The appointment recommendation, then the manual's steps |
 | Unknown year | "How do I pair my phone with my 2027 MDX?" | No 2027 manual; offers 2022–2026 |
 
+### Phone scenarios
+
+Run `npm run voice:on`, call the number and say:
+
+| Scenario | Say | Expected |
+|---|---|---|
+| Greeting | (just listen) | "Hi, this is the Service Assistant. This call may be recorded. How can I help you with your Acura today?" |
+| Complete question | "What tire pressure should I use on my 2026 MDX?" | Says it's checking the owner's manual, gives the pressure, then asks "Is there anything else I can help you with?" |
+| Missing car | "How do I pair my phone?" | Asks for the model year and model, then answers |
+| Same car, next question | (after the previous one) "And how much oil does it take?" | Answers for the same car without asking again |
+| Dealer notice | "How do I change the oil on my 2026 Integra?" | The dealer appointment recommendation first, then the main steps |
+| Off-topic | "What's the capital of Ecuador?" | "Please ask a question about Acura cars." |
+| Goodbye | "No, that's all, thanks." | Says goodbye and hangs up |
+| Line off | Run `npm run voice:off`, then call | The agent doesn't answer (what the caller hears instead is up to Retell) |
+
 ---
 
 ## 17. Troubleshooting
@@ -689,6 +777,12 @@ Log in and try these; each shows a different part of the system.
 | `contract emit` fails with codec errors | Mismatched Prisma package versions; reinstall the pinned set (see Setup). |
 | `prisma migration plan` asks for an origin | Pass `--from <last migration directory name>`. |
 | Port 3000 already in use | Stop the other process, or `PORT=3001 npm run dev` (then the Vite proxy needs 3000 free). |
+| The phone number doesn't answer | The line is off: `npm run voice:status`, then `npm run voice:on`. |
+| On a call, the agent says it couldn't check the manual | The tool can't reach your app. Check `RETELL_TOOL_URL` in `.env` (and that ngrok is still running if you were testing locally), then `npm run voice:setup`. |
+| `/api/voice/ask` returns `401` (ngrok inspector or logs) | The signature doesn't match: `RETELL_API_KEY` isn't the key with the webhook badge from the workspace that owns the agent, or differs between `.env` and Prisma. |
+| `/api/voice/ask` returns `503` | `RETELL_API_KEY` isn't set on the server (Prisma env vars, or `.env` locally). |
+| `voice:setup` stops asking for `RETELL_TOOL_URL` or `RETELL_PHONE_NUMBER` | Add them to `.env` (see [Setup step 6](#6-phone-agent-optional)). |
+| The agent speaks too fast or too slow | Change `voice_speed` in `scripts/voice/setup-retell.ts` (0.5–2, default 1) and run `npm run voice:setup`. |
 
 ---
 
@@ -700,6 +794,7 @@ Log in and try these; each shows a different part of the system.
 - **Limits and sessions** are per server process (in memory); a restart resets the counters.
 - **No streaming:** answers appear when complete (typically 2–5 s).
 - **Accounts** are managed with `npm run auth:users`, not in the UI.
+- **Phone agent:** each question is answered on its own (the caller's car comes from Retell's LLM, which repeats it in every question), answers take 3–10 s, and only US/Canadian Retell numbers are supported.
 
 ---
 
