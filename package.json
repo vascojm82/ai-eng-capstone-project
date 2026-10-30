@@ -16,6 +16,9 @@
     "manuals:upload": "tsx --import ./lib/env.ts scripts/manuals/upload.ts",
     "auth:users": "tsx scripts/auth/create-users.ts",
     "voice:setup": "tsx --import ./lib/env.ts scripts/voice/setup-retell.ts",
+    "voice:on": "tsx --import ./lib/env.ts scripts/voice/toggle-retell.ts on",
+    "voice:off": "tsx --import ./lib/env.ts scripts/voice/toggle-retell.ts off",
+    "voice:status": "tsx --import ./lib/env.ts scripts/voice/toggle-retell.ts status",
     "dev:web": "vite --config web/vite.config.ts"
   },
   "keywords": [],

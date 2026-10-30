@@ -612,7 +612,9 @@ rm cookies.txt
 | `DATABASE_URL` | local only | `.env` | Postgres for local runs and scripts (on Prisma the database comes from the service) |
 | `APP_USERS` | yes | `.env`, Prisma (secret) | Accounts: `username:role:scrypt-hash`, comma-separated |
 | `SESSION_SECRET` | yes | `.env`, Prisma (secret) | Signs session cookies |
-| `RETELL_API_KEY` | yes on Prisma; locally only for voice | `.env`, Prisma (secret) | Verifies `/api/voice/ask` signatures (the Retell key with the webhook badge) |
+| `RETELL_API_KEY` | yes on Prisma; locally only for voice | `.env`, Prisma (secret) | Verifies `/api/voice/ask` signatures (the Retell key with the webhook badge). Its Retell workspace is where the voice scripts create the agent |
+| `RETELL_PHONE_NUMBER` | voice scripts only | `.env` | The number bought in that Retell workspace (E.164, e.g. `+14155551234`) |
+| `RETELL_TOOL_URL` | `voice:setup` only | `.env` | Your deployed app's `https://<host>/api/voice/ask`, where the phone agent's tool sends questions; override it in the shell for an ngrok test |
 | `PORT` | no | `.env` | Local port (default 3000; Prisma sets it) |
 
 ### Tuning constants
@@ -647,6 +649,8 @@ rm cookies.txt
 | `npm run manuals:chunk` | Chunk the PDFs into `data/chunks/` (`-- <DOC_CODE> --show <pages>` to inspect) |
 | `npm run manuals:upload` | Embed and store chunks (`-- --dry-run`, `-- --force`, `-- <DOC_CODE>`) |
 | `npm run voice:setup` | Create or update the Retell phone agent (LLM, agent, and the `RETELL_PHONE_NUMBER` it answers); `-- --dry-run` prints the settings without changing anything. Safe to re-run |
+| `npm run voice:on` / `voice:off` | Turn the demo phone line on or off: assign or remove the agent on `RETELL_PHONE_NUMBER`, so Retell only answers (and bills) during demos. The number is kept |
+| `npm run voice:status` | Show whether the phone line is on |
 | `npm run contract:emit` | Regenerate `src/prisma/contract.json`/`.d.ts` after editing the schema |
 
 Schema changes: edit `src/prisma/contract.prisma` → `npm run contract:emit` → `npx prisma migration plan --from <last migration> --name <name>` → commit `migrations/`.

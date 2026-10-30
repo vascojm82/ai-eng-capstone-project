@@ -1,6 +1,6 @@
 /**
- * Sets up the phone agent in Retell (the service-assistant workspace of the
- * RETELL_API_KEY): the Retell LLM, the agent, and the phone number it answers.
+ * Sets up the phone agent in Retell (in the workspace RETELL_API_KEY belongs
+ * to): the Retell LLM, the agent, and the phone number it answers.
  *
  *   caller ⇄ Retell (speech, its LLM, the voice) ── owners_manual_lookup ──▶ POST /api/voice/ask
  *
@@ -18,17 +18,18 @@
  *   npm run voice:setup
  *   npm run voice:setup -- --dry-run     # print what would be sent, change nothing
  *
- * The tool calls production by default. To test against your machine, expose
- * `npm run dev` with ngrok and run:
+ * The tool calls RETELL_TOOL_URL from .env: your deployed app's
+ * https://<your-app-host>/api/voice/ask. To test against your machine, expose
+ * `npm run dev` with ngrok and override it for one run (the shell wins over .env):
  *   RETELL_TOOL_URL=https://<your-ngrok-host>/api/voice/ask npm run voice:setup
- * (run it again without RETELL_TOOL_URL afterwards to point back to production).
+ * then run `npm run voice:setup` again afterwards to point back to your app.
  */
 
-import Retell from "retell-sdk";
+import type Retell from "retell-sdk";
+import { AGENT_NAME, findAgent, getPhoneNumber, retellFromEnv } from "./retell.ts";
 
-const AGENT_NAME = "Service Assistant";
-const PRODUCTION_TOOL_URL = "https://dctpsbjexnavhciqbet8z0rf.ewr.prisma.build/api/voice/ask";
-const TOOL_URL = process.env.RETELL_TOOL_URL || PRODUCTION_TOOL_URL;
+// Where the owners_manual_lookup tool sends questions: the /api/voice/ask of your deployed app
+const TOOL_URL = process.env.RETELL_TOOL_URL ?? "";
 // The small GPT-6 model: Retell's LLM only runs the conversation, our server does the search.
 // Set with `model`/`model_temperature`: retell-sdk 6.2.7 doesn't have the newer `model_config` yet.
 const MODEL = "gpt-6-luna";
@@ -101,45 +102,22 @@ const AGENT = {
   end_call_after_silence_ms: 30_000, // give callers time to find their car's details
 } satisfies Omit<Retell.AgentCreateParams, "response_engine">;
 
-/** The voice agent named AGENT_NAME, if it exists */
-async function findAgent(client: Retell) {
-  let pagination_key: string | undefined;
-  do {
-    const page = await client.agent.list({ limit: 100, pagination_key });
-    const agent = page.items.find((a) => a.agent_name === AGENT_NAME);
-    if (agent) return client.agent.retrieve(agent.agent_id);
-    pagination_key = page.has_more ? page.pagination_key : undefined;
-  } while (pagination_key);
-  return null;
-}
-
 async function main() {
   const dryRun = process.argv.includes("--dry-run");
-  const apiKey = process.env.RETELL_API_KEY;
-  const phoneNumber = process.env.RETELL_PHONE_NUMBER;
-  if (!apiKey || !phoneNumber) {
-    console.error("RETELL_API_KEY and RETELL_PHONE_NUMBER must be set in .env");
-    process.exit(1);
-  }
-  if (!/^\+1\d{10}$/.test(phoneNumber)) {
-    console.error("RETELL_PHONE_NUMBER must be in E.164 format, e.g. +14155551234");
+  const { client, phoneNumber } = retellFromEnv();
+  if (!/^https:\/\/.+\/api\/voice\/ask$/.test(TOOL_URL)) {
+    console.error("RETELL_TOOL_URL must be set in .env to your app's https://<host>/api/voice/ask");
     process.exit(1);
   }
 
-  console.log(`Tool URL: ${TOOL_URL}${TOOL_URL === PRODUCTION_TOOL_URL ? " (production)" : ""}`);
+  console.log(`Tool URL: ${TOOL_URL}`);
   if (dryRun) {
     console.log(JSON.stringify({ llm: LLM, agent: AGENT }, null, 2));
     console.log("Dry run: nothing was changed.");
     return;
   }
 
-  const client = new Retell({ apiKey });
-  const numberInfo = await client.phoneNumber.retrieve(phoneNumber).catch(() => null);
-  if (!numberInfo) {
-    console.error("RETELL_PHONE_NUMBER isn't a number in this Retell workspace. Buy it in the dashboard first.");
-    process.exit(1);
-  }
-
+  await getPhoneNumber(client, phoneNumber);
   const existing = await findAgent(client);
   let agentId: string;
   if (existing) {
