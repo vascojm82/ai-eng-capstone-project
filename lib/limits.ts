@@ -1,6 +1,7 @@
 // Usage limits that protect the OpenAI bill:
 //   - each user: QUESTIONS_PER_USER_PER_HOUR questions in any 60 minutes
-//   - the whole app: QUESTIONS_PER_DAY questions per day (UTC)
+//   - each phone caller: QUESTIONS_PER_CALLER_PER_HOUR questions in any 60 minutes
+//   - the whole app: QUESTIONS_PER_DAY questions per day (UTC), web and phone together
 //   - each IP address: LOGIN_ATTEMPTS login attempts (successful or not) per 15 minutes
 //
 // Counts are kept in this process's memory: they reset when the server
@@ -8,6 +9,7 @@
 // single small deployment; a shared store (the database) would be the next step.
 
 export const QUESTIONS_PER_USER_PER_HOUR = 20;
+export const QUESTIONS_PER_CALLER_PER_HOUR = 20;
 export const QUESTIONS_PER_DAY = 300;
 const LOGIN_ATTEMPTS = 10;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
@@ -41,14 +43,15 @@ class SlidingWindow {
 }
 
 const perUser = new SlidingWindow(QUESTIONS_PER_USER_PER_HOUR, HOUR_MS);
+const perCaller = new SlidingWindow(QUESTIONS_PER_CALLER_PER_HOUR, HOUR_MS);
 const loginsPerIp = new SlidingWindow(LOGIN_ATTEMPTS, LOGIN_WINDOW_MS);
 let day = "";
 let questionsToday = 0;
 
 export type LimitResult = { ok: true } | { ok: false; error: string; retryAfterSeconds: number };
 
-/** Counts one question for this user; refuses it when the user or the whole app is over the limit */
-export function takeQuestion(username: string, now = new Date()): LimitResult {
+/** Counts one question against `window` for `key` and against the app's daily limit */
+function take(window: SlidingWindow, key: string, overLimitError: string, now: Date): LimitResult {
   const today = now.toISOString().slice(0, 10);
   if (today !== day) {
     day = today;
@@ -62,15 +65,23 @@ export function takeQuestion(username: string, now = new Date()): LimitResult {
       retryAfterSeconds: Math.ceil((midnight - now.getTime()) / 1000),
     };
   }
-  if (!perUser.take(username, now.getTime())) {
-    return {
-      ok: false,
-      error: `You've reached the limit of ${QUESTIONS_PER_USER_PER_HOUR} questions per hour. Please try again later.`,
-      retryAfterSeconds: perUser.retryAfterSeconds(username, now.getTime()),
-    };
+  if (!window.take(key, now.getTime())) {
+    return { ok: false, error: overLimitError, retryAfterSeconds: window.retryAfterSeconds(key, now.getTime()) };
   }
   questionsToday++;
   return { ok: true };
+}
+
+/** Counts one question for this user; refuses it when the user or the whole app is over the limit */
+export function takeQuestion(username: string, now = new Date()): LimitResult {
+  const error = `You've reached the limit of ${QUESTIONS_PER_USER_PER_HOUR} questions per hour. Please try again later.`;
+  return take(perUser, username, error, now);
+}
+
+/** Counts one phone question for this caller (their phone number); refuses it when the caller or the whole app is over the limit */
+export function takeVoiceQuestion(caller: string, now = new Date()): LimitResult {
+  const error = `You've reached the limit of ${QUESTIONS_PER_CALLER_PER_HOUR} questions per hour. Please call again later.`;
+  return take(perCaller, caller, error, now);
 }
 
 /** Counts one login attempt from this IP address; refuses it when there were too many */

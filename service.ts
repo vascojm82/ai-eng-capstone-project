@@ -24,6 +24,8 @@ export default compute({
     // Login accounts (username:role:scrypt hash, see lib/auth.ts) and the key that signs session cookies
     appUsers: secretString(),
     sessionSecret: secretString(),
+    // Checks that /api/voice/ask requests come from Retell (the key with the webhook badge)
+    retellApiKey: secretString(),
   }),
   build: node({
     module: import.meta.url,

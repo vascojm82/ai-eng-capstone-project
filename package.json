@@ -15,6 +15,7 @@
     "manuals:chunk": "tsx --import ./lib/env.ts scripts/manuals/chunk.ts",
     "manuals:upload": "tsx --import ./lib/env.ts scripts/manuals/upload.ts",
     "auth:users": "tsx scripts/auth/create-users.ts",
+    "voice:setup": "tsx --import ./lib/env.ts scripts/voice/setup-retell.ts",
     "dev:web": "vite --config web/vite.config.ts"
   },
   "keywords": [],
@@ -28,7 +29,8 @@
     "arktype": "2.2.9",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",
-    "openai": "^7.43.0"
+    "openai": "^7.43.0",
+    "retell-sdk": "6.2.7"
   },
   "devDependencies": {
     "@emotion/react": "^11.14.0",

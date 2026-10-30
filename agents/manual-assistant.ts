@@ -137,6 +137,27 @@ How to work:
 
 Style: short and direct. Use numbered steps for procedures. Answer in English.`;
 
+/**
+ * Added after SYSTEM_PROMPT for phone calls (/api/voice/ask): Retell's voice
+ * agent reads the reply to the caller, so it replaces the citation and
+ * formatting rules. The search and scope rules stay the same.
+ */
+const VOICE_STYLE = `This conversation is a phone call: your reply will be read aloud to the caller. This overrides rule 4 and the style above:
+- Plain spoken sentences only: no Markdown, bullet points, numbered lists, headings, links or citations, and don't mention manual names or page numbers.
+- Keep it short: at most about 4 sentences. For a procedure, give the main steps in order in a few sentences ("First…, then…, finally…").
+- Always give values with their units, e.g. "35 psi" or "5.5 US quarts".
+- The fixed replies in the scope rules stay exactly as written.`;
+
+/** Removes what doesn't belong in a spoken answer, in case the model added it anyway */
+function forSpeech(reply: string): string {
+  return reply
+    .replace(/\s*\([^()]*\bpp?\.\s*\d+[^()]*\)/g, "") // citations like (2026 MDX Owner's Manual, p. 752)
+    .replace(/[*_#`]+/g, "") // Markdown emphasis, headings and code
+    .replace(/^\s*(?:\d+[.)]|[-•])\s+/gm, "") // list markers at the start of a line
+    .replace(/\s*\n\s*/g, " ") // one paragraph
+    .trim();
+}
+
 const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
@@ -280,11 +301,17 @@ async function knownVehicle(db: Db, conversation: ChatMessage[]): Promise<string
   return null;
 }
 
-export async function runAgent(db: Db, conversation: ChatMessage[]): Promise<AgentReply> {
+/** `voice`: the reply will be read aloud on a phone call (short, plain sentences, no citations) */
+export async function runAgent(
+  db: Db,
+  conversation: ChatMessage[],
+  { voice = false }: { voice?: boolean } = {},
+): Promise<AgentReply> {
   const vehicle = await knownVehicle(db, conversation);
 
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: "system", content: SYSTEM_PROMPT },
+    ...(voice ? [{ role: "system" as const, content: VOICE_STYLE }] : []),
     ...(vehicle ? [{ role: "system" as const, content: vehicle }] : []),
     ...conversation.slice(-HISTORY_MESSAGES).map((m) => ({ role: m.role, content: m.content })),
   ];
@@ -310,7 +337,7 @@ export async function runAgent(db: Db, conversation: ChatMessage[]): Promise<Age
       const reply = message.content?.trim() || "Sorry, I couldn't produce an answer. Please try again.";
       const rejection = REJECT_REPLIES.find((text) => reply.includes(text));
       if (rejection) return { reply: rejection, sources: [], steps };
-      return { reply, sources: citedSources(reply, results), steps };
+      return { reply: voice ? forSpeech(reply) : reply, sources: citedSources(reply, results), steps };
     }
 
     // The model asked for tools: run them and give it the results

@@ -1,6 +1,6 @@
 // Root Prisma Composer module: what `prisma deploy` provisions. The database
-// applies the committed migrations/ before the api service starts. The OpenAI
-// settings come from the project's environment variables on Prisma
+// applies the committed migrations/ before the api service starts. The OpenAI,
+// login and Retell settings come from the project's environment variables on Prisma
 // (`npx prisma project env add ...`), never from .env.
 import { module } from "@prisma/composer";
 import { envParam, envSecret } from "@prisma/composer-prisma-cloud";
@@ -18,6 +18,7 @@ export default module("capstone-project", ({ provision }) => {
       openaiBaseUrl: envParam("OPENAI_BASE_URL"),
       appUsers: envSecret("APP_USERS"),
       sessionSecret: envSecret("SESSION_SECRET"),
+      retellApiKey: envSecret("RETELL_API_KEY"),
     },
   });
 });

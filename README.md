@@ -50,6 +50,7 @@ It's a retrieval-augmented generation (RAG) app with one agent, a SQL database a
 | **Scope rules** | Off-topic questions get "Please ask a question about Acura cars."; repair and diagnosis questions are declined; engine oil, transmission fluid and brake pad changes start with a recommendation to book a dealer appointment. |
 | **Conversation memory** | Follow-ups work ("And how much oil does the 3.0 L take?"); the car named earlier in the chat is remembered. |
 | **Login and limits** | Two accounts (`user`, `admin`); 20 questions per user per hour and 300 per day for the whole app, to cap OpenAI costs. |
+| **Phone answers (Retell)** | `POST /api/voice/ask` answers questions for a Retell phone agent: same search and rules, short spoken answers, signed requests only, 20 questions per caller per hour. |
 | **Coverage** | 37 manuals (23 owner's, 14 navigation) for 135 US trims, model years 2022–2026: ADX, ILX, Integra, MDX, NSX, RDX, TLX, ZDX. |
 
 ---
@@ -286,7 +287,8 @@ sequenceDiagram
 | Limit | Value |
 |---|---|
 | Questions per user | 20 per rolling hour |
-| Questions for the whole app | 300 per day (UTC) |
+| Questions per phone caller (`/api/voice/ask`) | 20 per rolling hour, by caller number |
+| Questions for the whole app | 300 per day (UTC), web and phone together |
 | Login attempts per IP | 10 per 15 minutes |
 
 The counters live in the server's memory: they reset on restart and aren't shared between instances. As a last line of defense, also set a monthly budget on your OpenAI account.
@@ -315,7 +317,8 @@ A single-page React app in [`web/`](web), built by Vite into `dist/public` and s
 ├── server.ts                  # Express app: /api routes + serves the built frontend
 ├── routes/
 │   ├── auth.ts                # /api/login, /api/logout, /api/me
-│   └── index.ts               # /api/chat, /api/search (login + limits)
+│   ├── assistant.ts           # /api/chat, /api/search (login + limits)
+│   └── voice.ts               # /api/voice/ask (Retell phone agent, signed requests)
 ├── agents/
 │   └── manual-assistant.ts    # the agent: prompt, scope rules, tools, loop
 ├── lib/
@@ -480,6 +483,7 @@ for ROLE in production preview; do
   npx prisma project env add OPENAI_BASE_URL --role $ROLE --project capstone-project
   npx prisma project env add APP_USERS       --role $ROLE --project capstone-project
   npx prisma project env add SESSION_SECRET  --role $ROLE --project capstone-project
+  npx prisma project env add RETELL_API_KEY  --role $ROLE --project capstone-project
 done
 ```
 
@@ -563,6 +567,25 @@ The raw search, without the agent: `{ "query": "tire pressure on a 2026 MDX", "k
 | `422` | The query doesn't name a model (or names several): `missing`, `message`, `available` |
 | `404` | No manuals for that year and model |
 
+### `POST /api/voice/ask` (Retell only)
+
+The tool endpoint for the Retell phone agent: Retell's LLM calls it (custom tool `owners_manual_lookup`) when a caller asks about their car, then reads the answer to them. There's no login: every request must carry Retell's `X-Retell-Signature` header, an HMAC-SHA256 of the exact raw body made with `RETELL_API_KEY`, less than 5 minutes old. That's why the route reads the raw body and is mounted before `express.json()` in `server.ts`.
+
+```json
+{ "name": "owners_manual_lookup",
+  "call": { "call_id": "…", "from_number": "+1…", "transcript": "…" },
+  "args": { "question": "What tire pressure should I use on my 2026 MDX?" } }
+```
+
+→ `200 { "answer": "35 psi for the 3.0-liter model…" }`: the same agent as `/api/chat` in voice mode (short plain sentences, no Markdown or page citations). The question must name the model year and model, or the answer asks for them.
+
+| Status | When |
+|---|---|
+| `200` | The answer. Also when the caller or the app is over its limit, with the limit message as the answer, so Retell reads it to the caller |
+| `400` | `args.question` missing, empty or over 1,000 characters |
+| `401` | Missing, invalid or expired signature |
+| `503` | `RETELL_API_KEY`, the database or OpenAI isn't configured |
+
 ### From a terminal
 
 ```sh
@@ -589,6 +612,7 @@ rm cookies.txt
 | `DATABASE_URL` | local only | `.env` | Postgres for local runs and scripts (on Prisma the database comes from the service) |
 | `APP_USERS` | yes | `.env`, Prisma (secret) | Accounts: `username:role:scrypt-hash`, comma-separated |
 | `SESSION_SECRET` | yes | `.env`, Prisma (secret) | Signs session cookies |
+| `RETELL_API_KEY` | yes on Prisma; locally only for voice | `.env`, Prisma (secret) | Verifies `/api/voice/ask` signatures (the Retell key with the webhook badge) |
 | `PORT` | no | `.env` | Local port (default 3000; Prisma sets it) |
 
 ### Tuning constants
@@ -601,7 +625,7 @@ rm cookies.txt
 | Passages per search | `agents/manual-assistant.ts` (`DEFAULT_K`) | 5 (max 10) |
 | Scope rules and fixed replies | `agents/manual-assistant.ts` (`fewShotExamples`, `DEALER_NOTICE`) | see section 6 |
 | Embedding model and size | `lib/openai.ts` | `text-embedding-3-small`, 1,536 |
-| Usage limits | `lib/limits.ts` | 20/user/hour, 300/day, 10 logins/IP/15 min |
+| Usage limits | `lib/limits.ts` | 20/user/hour, 20/phone caller/hour, 300/day, 10 logins/IP/15 min |
 | Session length | `lib/auth.ts` | 7 days |
 | Chunk sizes | `scripts/manuals/chunk.ts` | split above 700 tokens, target 500 |
 
@@ -622,6 +646,7 @@ rm cookies.txt
 | `npm run db:seed` | Fill vehicles, manuals and links from the manifests |
 | `npm run manuals:chunk` | Chunk the PDFs into `data/chunks/` (`-- <DOC_CODE> --show <pages>` to inspect) |
 | `npm run manuals:upload` | Embed and store chunks (`-- --dry-run`, `-- --force`, `-- <DOC_CODE>`) |
+| `npm run voice:setup` | Create or update the Retell phone agent (LLM, agent, and the `RETELL_PHONE_NUMBER` it answers); `-- --dry-run` prints the settings without changing anything. Safe to re-run |
 | `npm run contract:emit` | Regenerate `src/prisma/contract.json`/`.d.ts` after editing the schema |
 
 Schema changes: edit `src/prisma/contract.prisma` → `npm run contract:emit` → `npx prisma migration plan --from <last migration> --name <name>` → commit `migrations/`.

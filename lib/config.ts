@@ -1,7 +1,7 @@
-// Where the server gets its database, OpenAI and login settings:
+// Where the server gets its database, OpenAI, login and Retell settings:
 //
 // - On Prisma: from the service declaration (service.ts). The database comes
-//   from service.load() and the OpenAI and login settings from service.input(),
+//   from service.load() and the other settings from service.input(),
 //   which reads the project's environment variables bound in module.ts.
 // - Locally (npm run dev): from .env, as the scripts do.
 //
@@ -29,6 +29,8 @@ type AppConfig = {
   accounts: ReturnType<typeof parseAccounts>;
   /** Signs the session cookies; null when not configured */
   sessionSecret: string | null;
+  /** Verifies that /api/voice/ask requests come from Retell; null when not configured */
+  retellApiKey: string | null;
 };
 
 let config: AppConfig | null = null;
@@ -46,6 +48,7 @@ export async function appConfig(): Promise<AppConfig> {
       openai: true,
       accounts: parseAccounts(input.appUsers.expose()),
       sessionSecret: input.sessionSecret.expose(),
+      retellApiKey: input.retellApiKey.expose(),
     };
   } else {
     const db = process.env.DATABASE_URL ? (await import("../src/prisma/db.ts")).db : null;
@@ -55,6 +58,7 @@ export async function appConfig(): Promise<AppConfig> {
       openai: Boolean(process.env.OPENAI_API_KEY),
       accounts: parseAccounts(process.env.APP_USERS),
       sessionSecret: process.env.SESSION_SECRET || null,
+      retellApiKey: process.env.RETELL_API_KEY || null,
     };
   }
   return config;
