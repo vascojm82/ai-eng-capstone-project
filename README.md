@@ -335,7 +335,8 @@ A single-page React app in [`web/`](web), built by Vite into `dist/public` and s
 │   ├── limits.ts              # usage limits
 │   ├── openai.ts              # OpenAI client, embeddings
 │   ├── config.ts              # settings: Prisma (service.ts) vs local (.env)
-│   └── env.ts                 # loads .env
+│   ├── env.ts                 # loads .env
+│   └── evals/                 # npm run evals: chat.test.ts (cases + LLM judge), server.ts (starts the API)
 ├── web/                       # React frontend (Vite)
 │   ├── src/                   # App, LoginPage, ChatPage, api.ts, theme.ts
 │   ├── public/favicon.svg
@@ -350,6 +351,7 @@ A single-page React app in [`web/`](web), built by Vite into `dist/public` and s
 ├── data/acura_manuals/        # fetch_manuals.py, manifests (PDFs gitignored)
 ├── service.ts · module.ts     # Prisma Compute: the service, its database and settings
 ├── prisma.config.ts           # Prisma ORM + deploy configuration
+├── vitest.config.ts           # runs lib/evals (see section 16)
 └── .github/workflows/prisma-deploy.yml
 ```
 
@@ -391,6 +393,7 @@ OPENAI_API_KEY=sk-...                         # your OpenAI key
 OPENAI_BASE_URL=https://api.openai.com/v1     # optional; set it only to use a proxy
 DATABASE_URL="postgres://USER:PASSWORD@HOST:5432/postgres?sslmode=verify-full"
 RETELL_API_KEY=not-used                       # your Retell key if you set up the phone agent (step 6)
+TYPESAFE_API_KEY=...                          # optional; only for the evals (npm run evals, section 16)
 ```
 
 > `RETELL_API_KEY` is **required on Prisma even without the phone agent**: the pinned Prisma version fails a deploy when a secret is missing. If you don't use the phone agent, any value works (e.g. `not-used`): `/api/voice/ask` then rejects every request with `401`, and the rest of the app is unaffected. Locally it can be left out.
@@ -689,6 +692,8 @@ rm cookies.txt
 | `RETELL_PHONE_NUMBER` | voice scripts only | `.env` | The number bought in that Retell workspace (E.164, e.g. `+14155551234`) |
 | `RETELL_TOOL_URL` | `voice:setup` only | `.env` | Your deployed app's `https://<host>/api/voice/ask`, where the phone agent's tool sends questions; override it in the shell for an ngrok test |
 | `PORT` | no | `.env` | Local port (default 3000; Prisma sets it) |
+| `TYPESAFE_API_KEY` | evals only | `.env` | The TypeSafe judge that scores the evals' answers (`npm run evals`) |
+| `EVALS_PORT` | no | shell or `.env` | Port of the server the evals start (default 3100) |
 
 ### Tuning constants
 
@@ -725,6 +730,8 @@ rm cookies.txt
 | `npm run voice:on` / `voice:off` | Turn the demo phone line on or off: assign or remove the agent on `RETELL_PHONE_NUMBER`, so Retell only answers (and bills) during demos. The number is kept |
 | `npm run voice:status` | Show whether the phone line is on |
 | `npm run contract:emit` | Regenerate `src/prisma/contract.json`/`.d.ts` after editing the schema |
+| `npm run evals` | Run the chat evals in `lib/evals`: starts the API on port 3100, asks each case, scores the replies with an LLM judge (see section 16) |
+| `npm test` | Run every test with Vitest (today, the same evals) |
 
 Schema changes: edit `src/prisma/contract.prisma` → `npm run contract:emit` → `npx prisma migration plan --from <last migration> --name <name>` → commit `migrations/`.
 
@@ -761,6 +768,48 @@ Run `npm run voice:on`, call the number and say:
 | Goodbye | "No, that's all, thanks." | Says goodbye and hangs up |
 | Line off | Run `npm run voice:off`, then call | The agent doesn't answer (what the caller hears instead is up to Retell) |
 
+### Automated evals
+
+The web scenarios above, and a few more, also run as automated evals in [`lib/evals/chat.test.ts`](lib/evals/chat.test.ts). Each case sends a question to `POST /api/chat`. A [TypeSafe](https://typesafe.ai) LLM judge then scores the reply from 0 to 1 against the case's criteria, and the case passes when the score reaches its threshold.
+
+**Before the first run**, make sure `.env` has:
+
+- `TYPESAFE_API_KEY`, for the judge.
+- `DATABASE_URL`, `OPENAI_API_KEY` and `SESSION_SECRET`, as for `npm run dev`.
+
+**Run them** from the project folder:
+
+```sh
+npm run evals                                                  # pass/fail per case
+npm run evals -- --reporter=verbose --silent=false             # also prints each case's score and reply
+npm run evals -- --testNamePattern="check the tire" --reporter=verbose --silent=false   # only the cases whose question matches
+```
+
+You don't need to start the server first. The evals start their own on port **3100** and stop it when they finish. To use another port, set `EVALS_PORT`, e.g. `EVALS_PORT=3200 npm run evals`. The evals' server is separate from your `npm run dev` on port 3000, so it can't pick up some other app running there, and every run starts with fresh usage limits.
+
+**What a run costs and takes:** about 2 minutes, with one OpenAI agent call per request plus one TypeSafe judge call per case. The first case can take longer while the database warms up. Each case may take up to 120 s.
+
+**How the evals log in:** instead of using a password, they sign their own session cookie with `SESSION_SECRET`, just as `/api/login` would. They log in as a user named `evals-<timestamp>`.
+
+**The cases** cover answers from the manual (oil capacity, tire pressure, the dealer notice, prices the manual doesn't list), working out the vehicle (asking for it, clarification, follow-ups, switching cars, an unknown year) and the scope rules (off-topic, coding, another brand, a repair).
+
+**Adding a case** means adding an object to `CASES`:
+
+```ts
+{
+  history: ["How do I pair my phone with my car?"],   // optional: earlier user messages, each answered by the agent first
+  question: "It's a 2024 ZDX",
+  criteria: "Gives steps for pairing a phone with the 2024 ZDX and cites the 2024 ZDX manual with page numbers",
+  threshold: 0.8,                                     // minimum judge score, 0 to 1
+},
+```
+
+Write the criteria as something the judge can check from the reply alone, including what the reply must **not** contain, e.g. `does not say Quito`. Use 0.9 for fixed replies and 0.8 for answers that can be worded in different ways.
+
+> **Keep a run under 20 requests.** Each user gets 20 questions per hour ([section 7](#7-login-and-usage-limits)), and each case uses one request plus one for each `history` message. Today's 13 cases use 16 requests. Going over makes the later cases fail with `429`.
+
+The agent's answers vary a little from run to run, so a case can fail now and then even without a code change. Rerun only that case (`--testNamePattern`) to check: if it fails only sometimes, it's a real but intermittent problem in the agent. For example, the "switching cars" case once answered for an MDX without asking for its year.
+
 ---
 
 ## 17. Troubleshooting
@@ -777,6 +826,9 @@ Run `npm run voice:on`, call the number and say:
 | `contract emit` fails with codec errors | Mismatched Prisma package versions; reinstall the pinned set (see Setup). |
 | `prisma migration plan` asks for an origin | Pass `--from <last migration directory name>`. |
 | Port 3000 already in use | Stop the other process, or `PORT=3001 npm run dev` (then the Vite proxy needs 3000 free). |
+| Evals: every case fails with `401 Cannot authenticate` | `TYPESAFE_API_KEY` in `.env` is missing or isn't a TypeSafe key. |
+| Evals: `Port 3100 is already in use` | Another process (often an earlier eval run that didn't stop) is on that port. Stop it, or run with `EVALS_PORT=3200 npm run evals`. |
+| Evals: cases fail with `expected 400` / `401` / `503` from `/api/chat` | The evals' server can't answer: check `DATABASE_URL`, `OPENAI_API_KEY` and `SESSION_SECRET` in `.env` (`npm run dev` shows the same problem). `429` means a run made more than 20 requests. |
 | The phone number doesn't answer | The line is off: `npm run voice:status`, then `npm run voice:on`. |
 | On a call, the agent says it couldn't check the manual | The tool can't reach your app. Check `RETELL_TOOL_URL` in `.env` (and that ngrok is still running if you were testing locally), then `npm run voice:setup`. |
 | `/api/voice/ask` returns `401` (ngrok inspector or logs) | The signature doesn't match: `RETELL_API_KEY` isn't the key with the webhook badge from the workspace that owns the agent, or differs between `.env` and Prisma. |

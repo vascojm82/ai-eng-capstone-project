@@ -19,7 +19,9 @@
     "voice:on": "tsx --import ./lib/env.ts scripts/voice/toggle-retell.ts on",
     "voice:off": "tsx --import ./lib/env.ts scripts/voice/toggle-retell.ts off",
     "voice:status": "tsx --import ./lib/env.ts scripts/voice/toggle-retell.ts status",
-    "dev:web": "vite --config web/vite.config.ts"
+    "dev:web": "vite --config web/vite.config.ts",
+    "test": "vitest run",
+    "evals": "vitest run lib/evals"
   },
   "keywords": [],
   "author": "",
@@ -44,14 +46,18 @@
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/supertest": "7.2.1",
+    "@typesafe-ai/sdk": "0.7.0",
     "@vitejs/plugin-react": "^6.1.2",
     "mupdf": "^1.28.1",
     "prisma": "8.0.0-rc.25",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-markdown": "^10.1.0",
+    "supertest": "7.3.1",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "vite": "^8.3.5"
+    "vite": "^8.3.5",
+    "vitest": "5.0.5"
   }
 }
