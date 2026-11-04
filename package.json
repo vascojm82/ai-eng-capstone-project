@@ -14,6 +14,8 @@
     "db:seed": "tsx --import ./lib/env.ts scripts/db/seed.ts",
     "manuals:chunk": "tsx --import ./lib/env.ts scripts/manuals/chunk.ts",
     "manuals:upload": "tsx --import ./lib/env.ts scripts/manuals/upload.ts",
+    "manuals:check": "tsx --import ./lib/env.ts scripts/manuals/update.ts --check",
+    "manuals:update": "tsx --import ./lib/env.ts scripts/manuals/update.ts",
     "auth:users": "tsx scripts/auth/create-users.ts",
     "voice:setup": "tsx --import ./lib/env.ts scripts/voice/setup-retell.ts",
     "voice:on": "tsx --import ./lib/env.ts scripts/voice/toggle-retell.ts on",

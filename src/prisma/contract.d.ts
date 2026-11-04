@@ -28,7 +28,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'b2836d39d80b94afd1e9de968455bc3fa804d5865bb6ba34b0c08e050bc7bf88'>;
+  StorageHashBase<'84297d9e6d333fc3f2808eebe32bfc49d01e5bdfcaa2cec27d1b60f682f2e5d8'>;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
@@ -314,9 +314,13 @@ export namespace Models {
     language: FieldOutputTypes['public']['Manual']['language'];
     manualType: FieldOutputTypes['public']['Manual']['manualType'];
     pageCount: FieldOutputTypes['public']['Manual']['pageCount'];
+    previousSha256: FieldOutputTypes['public']['Manual']['previousSha256'];
     sha256: FieldOutputTypes['public']['Manual']['sha256'];
+    sourceLastModified: FieldOutputTypes['public']['Manual']['sourceLastModified'];
+    sourceSize: FieldOutputTypes['public']['Manual']['sourceSize'];
     sourceUrl: FieldOutputTypes['public']['Manual']['sourceUrl'];
     title: FieldOutputTypes['public']['Manual']['title'];
+    updatedAt: FieldOutputTypes['public']['Manual']['updatedAt'];
     year: FieldOutputTypes['public']['Manual']['year'];
     chunks: public_Chunk[];
     vehicles: public_VehicleManual[];
@@ -490,9 +494,27 @@ type ContractBase = Omit<
                   readonly nullable: true;
                   readonly many: false;
                 };
+                readonly previous_sha256: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
                 readonly sha256: {
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly source_last_modified: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly source_size: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
                   readonly nullable: true;
                   readonly many: false;
                 };
@@ -506,6 +528,12 @@ type ContractBase = Omit<
                   readonly dataType: 'pg/text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly updated_at: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: true;
                   readonly many: false;
                 };
                 readonly year: {
@@ -765,9 +793,21 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly previousSha256: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly sha256: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sourceLastModified: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sourceSize: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
               readonly sourceUrl: {
                 readonly nullable: false;
@@ -776,6 +816,13 @@ type ContractBase = Omit<
               readonly title: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
               };
               readonly year: {
                 readonly nullable: false;
@@ -817,9 +864,13 @@ type ContractBase = Omit<
                 readonly language: { readonly column: 'language' };
                 readonly manualType: { readonly column: 'manual_type' };
                 readonly pageCount: { readonly column: 'page_count' };
+                readonly previousSha256: { readonly column: 'previous_sha256' };
                 readonly sha256: { readonly column: 'sha256' };
+                readonly sourceLastModified: { readonly column: 'source_last_modified' };
+                readonly sourceSize: { readonly column: 'source_size' };
                 readonly sourceUrl: { readonly column: 'source_url' };
                 readonly title: { readonly column: 'title' };
+                readonly updatedAt: { readonly column: 'updated_at' };
                 readonly year: { readonly column: 'year' };
               };
             };

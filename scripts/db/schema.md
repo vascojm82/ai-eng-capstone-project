@@ -35,6 +35,10 @@ erDiagram
         text        sha256       UK "nullable, hash of the PDF"
         int         page_count   "nullable, set by ingestion"
         timestamptz ingested_at  "nullable, set by ingestion"
+        text        previous_sha256      "nullable, hash before the last revision"
+        timestamptz updated_at           "nullable, when the last revision was seeded"
+        int         source_size          "nullable, server Content-Length"
+        text        source_last_modified "nullable, server Last-Modified"
     }
 
     chunks {

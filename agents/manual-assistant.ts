@@ -19,7 +19,7 @@ import type OpenAI from "openai";
 import type { Db } from "../lib/config.ts";
 import { openai } from "../lib/openai.ts";
 import { findManuals, searchManuals, type SearchResult } from "../lib/search.ts";
-import { detectVehicle } from "../lib/vehicles.ts";
+import { detectVehicle, type Catalog } from "../lib/vehicles.ts";
 
 // GPT-6 Luna, the small GPT-6 model, unless OPENAI_CHAT_MODEL picks another one.
 // gpt-4.1-mini, used before, leaves OpenAI's API on January 14, 2027.
@@ -119,7 +119,7 @@ ${fewShotExamples
   )
   .join("\n")}`;
 
-const SYSTEM_PROMPT = `You are the Acura owner's manual assistant. You answer questions about Acura vehicles using only their official owner's and navigation manuals (model years 2022–2026, US market).
+const SYSTEM_PROMPT = `You are the Acura owner's manual assistant. You answer questions about Acura vehicles using only their official owner's and navigation manuals (US market). The models and model years covered are whatever find_manuals returns; never assume a year is or isn't covered without checking.
 
 ${SCOPE_RULES}
 
@@ -199,6 +199,7 @@ async function runTool(
   db: Db,
   name: string,
   args: Record<string, unknown>,
+  vehicle: KnownVehicle,
 ): Promise<{ output: unknown; status?: string; results?: SearchResult[] }> {
   if (name === "find_manuals") {
     const year = typeof args.year === "number" ? args.year : undefined;
@@ -207,6 +208,15 @@ async function runTool(
   }
   if (name === "search_manuals") {
     const query = typeof args.query === "string" ? args.query : "";
+    // The model sometimes ignores the note that the year is unknown and searches with
+    // the year of another car from earlier in the conversation; make it ask instead
+    const borrowed = borrowedYear(query, vehicle);
+    if (borrowed !== undefined) {
+      const message =
+        `The user hasn't said which model year their ${vehicle.model} is; ${borrowed} wasn't given for it. ` +
+        `Don't search yet: ask the user for the year of their ${vehicle.model} in one short question.`;
+      return { output: { status: "needs_vehicle", missing: ["year"], message }, status: "needs_vehicle" };
+    }
     // At least DEFAULT_K passages: the right page is sometimes 3rd to 5th, and a few extra passages cost little
     const k = typeof args.k === "number" && Number.isInteger(args.k) ? Math.min(Math.max(args.k, DEFAULT_K), 10) : DEFAULT_K;
     const outcome = await searchManuals(db, query, k);
@@ -259,6 +269,25 @@ function citedSources(reply: string, results: SearchResult[]): Source[] {
   return sources;
 }
 
+type KnownVehicle = {
+  catalog: Catalog;
+  model?: string;
+  year?: number;
+  /** What the model is told about the vehicle, as a system message */
+  note: string | null;
+};
+
+/**
+ * A year in a search for the user's model when the user hasn't given that
+ * model's year (so it came from another car, or was made up), else undefined.
+ */
+function borrowedYear(query: string, vehicle: KnownVehicle): number | undefined {
+  if (!vehicle.model || vehicle.year !== undefined) return undefined;
+  const found = detectVehicle(query, vehicle.catalog);
+  const aboutModel = found.models.length === 0 || (found.models.length === 1 && found.models[0] === vehicle.model);
+  return aboutModel ? found.years[0] : undefined;
+}
+
 /**
  * The vehicle the user is asking about, found in code rather than left to the
  * model (which sometimes asks to confirm a vehicle it was already given).
@@ -270,7 +299,7 @@ function citedSources(reply: string, results: SearchResult[]): Source[] {
  * to that other car: after "…my 2026 Integra?" and then "…my MDX?", the MDX's
  * year is unknown, not 2026.
  */
-async function knownVehicle(db: Db, conversation: ChatMessage[]): Promise<string | null> {
+async function knownVehicle(db: Db, conversation: ChatMessage[]): Promise<KnownVehicle> {
   const { available } = await findManuals(db, {});
   const catalog = { models: Object.keys(available), years: [...new Set(Object.values(available).flat())] };
   let model: string | undefined;
@@ -286,19 +315,19 @@ async function knownVehicle(db: Db, conversation: ChatMessage[]): Promise<string
     if (model && year !== undefined) break;
   }
   if (model && year !== undefined) {
-    return (
+    const note =
       `The user's vehicle, from the conversation: the ${year} ${model}. Use it in your searches and don't ask the user to confirm it. ` +
-      `There's no need to call find_manuals for it: search_manuals finds its manuals and reports when there are none.`
-    );
+      `There's no need to call find_manuals for it: search_manuals finds its manuals and reports when there are none.`;
+    return { catalog, model, year, note };
   }
   if (model) {
-    return (
+    const note =
       `The user is asking about their ${model} but hasn't said its model year. Ask which year it is before searching. ` +
-      `Don't take the year from a message about a different model.`
-    );
+      `Don't take the year from a message about a different model.`;
+    return { catalog, model, note };
   }
-  if (year !== undefined) return `The user has named the model year (${year}) but not the model yet.`;
-  return null;
+  if (year !== undefined) return { catalog, year, note: `The user has named the model year (${year}) but not the model yet.` };
+  return { catalog, note: null };
 }
 
 /** `voice`: the reply will be read aloud on a phone call (short, plain sentences, no citations) */
@@ -312,7 +341,7 @@ export async function runAgent(
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: "system", content: SYSTEM_PROMPT },
     ...(voice ? [{ role: "system" as const, content: VOICE_STYLE }] : []),
-    ...(vehicle ? [{ role: "system" as const, content: vehicle }] : []),
+    ...(vehicle.note ? [{ role: "system" as const, content: vehicle.note }] : []),
     ...conversation.slice(-HISTORY_MESSAGES).map((m) => ({ role: m.role, content: m.content })),
   ];
 
@@ -350,7 +379,7 @@ export async function runAgent(
       } catch {
         // malformed arguments: the tool gets none and reports what's missing
       }
-      const { output, status, results: found } = await runTool(db, call.function.name, args);
+      const { output, status, results: found } = await runTool(db, call.function.name, args, vehicle);
       steps.push({ tool: call.function.name, args, status });
       if (found) results.push(...found);
       messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(output) });

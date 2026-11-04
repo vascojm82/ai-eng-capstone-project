@@ -30,6 +30,13 @@ model Manual {
   sha256     String?            @unique
   pageCount  Int?               @map("page_count")
   ingestedAt TimestamptzString? @map("ingested_at")
+  // The PDF's hash before its last revision, and when that revision was seeded
+  previousSha256     String?            @map("previous_sha256")
+  updatedAt          TimestamptzString? @map("updated_at")
+  // Content-Length and Last-Modified sent by the owner site for the PDF, so
+  // `npm run manuals:check` can skip downloading manuals that haven't changed
+  sourceSize         Int?               @map("source_size")
+  sourceLastModified String?            @map("source_last_modified")
   vehicles   VehicleManual[]
   chunks     Chunk[]
 

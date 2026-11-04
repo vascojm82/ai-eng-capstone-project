@@ -47,7 +47,8 @@ const GENERAL_PROMPT = `You are the Service Assistant. You answer phone calls fr
 - If the caller asks about something that has nothing to do with Acura vehicles, say "Please ask a question about Acura cars." without calling the tool.
 - If the tool fails, apologize and suggest calling back later or contacting an Acura dealer.
 - This is a phone call: keep replies short and ask one question at a time.
-- When the caller says they have no more questions or says goodbye, say goodbye and end the call.`;
+- When the caller says they have no more questions or says goodbye, say goodbye and end the call.
+- If the caller is abusive (insults, threats, or foul language directed at you), call end_call_abusive right away, without saying anything else first: it tells the caller why the call is ending and hangs up. A caller who is frustrated with their car, even with a mild swear word ("this damn light"), is not abusive: keep helping them.`;
 
 const LLM: Retell.LlmCreateParams = {
   model: MODEL,
@@ -86,6 +87,15 @@ const LLM: Retell.LlmCreateParams = {
       name: "end_call",
       description: "End the call when the caller says they have no more questions or says goodbye.",
     },
+    {
+      // Always says the same reason before hanging up (static text, not generated)
+      type: "end_call",
+      name: "end_call_abusive",
+      description: "End the call because the caller is abusive: insults, threats, or foul language directed at the agent.",
+      speak_during_execution: true,
+      execution_message_type: "static_text",
+      execution_message_description: "I'm ending this call because of abusive language. Goodbye.",
+    },
   ],
 };
 
@@ -100,6 +110,12 @@ const AGENT = {
   boosted_keywords: ["Acura", ...MODELS],
   max_call_duration_ms: 10 * 60 * 1000, // 10 minutes, caps the cost of one call
   end_call_after_silence_ms: 30_000, // give callers time to find their car's details
+  // "Remove noise + background speech": also filters out other people talking near the
+  // caller (a TV, a service waiting room), not only noise
+  denoising_mode: "noise-and-background-speech-cancellation",
+  // "Speech Removal Strength" (0–1, Retell's default 0.8): higher removes more background
+  // speech, lower keeps more of a quiet caller's voice
+  denoising_enhancement_level: 0.8,
 } satisfies Omit<Retell.AgentCreateParams, "response_engine">;
 
 async function main() {

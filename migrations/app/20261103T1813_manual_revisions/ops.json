@@ -1,0 +1,210 @@
+[
+  {
+    "id": "column.public.manuals.previous_sha256",
+    "label": "Add column \"previous_sha256\" to \"manuals\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "previous_sha256",
+        "table": "manuals"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"previous_sha256\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "manuals",
+          "previous_sha256"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"previous_sha256\"",
+        "sql": "ALTER TABLE \"public\".\"manuals\" ADD COLUMN \"previous_sha256\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"previous_sha256\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "manuals",
+          "previous_sha256"
+        ]
+      },
+      {
+        "description": "verify column \"previous_sha256\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "manuals",
+          "previous_sha256",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.manuals.source_last_modified",
+    "label": "Add column \"source_last_modified\" to \"manuals\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "source_last_modified",
+        "table": "manuals"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"source_last_modified\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "manuals",
+          "source_last_modified"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"source_last_modified\"",
+        "sql": "ALTER TABLE \"public\".\"manuals\" ADD COLUMN \"source_last_modified\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"source_last_modified\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "manuals",
+          "source_last_modified"
+        ]
+      },
+      {
+        "description": "verify column \"source_last_modified\" has type \"text\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "manuals",
+          "source_last_modified",
+          "text"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.manuals.source_size",
+    "label": "Add column \"source_size\" to \"manuals\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "source_size",
+        "table": "manuals"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"source_size\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "manuals",
+          "source_size"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"source_size\"",
+        "sql": "ALTER TABLE \"public\".\"manuals\" ADD COLUMN \"source_size\" int4"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"source_size\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "manuals",
+          "source_size"
+        ]
+      },
+      {
+        "description": "verify column \"source_size\" has type \"integer\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "manuals",
+          "source_size",
+          "integer"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.manuals.updated_at",
+    "label": "Add column \"updated_at\" to \"manuals\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "updated_at",
+        "table": "manuals"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"updated_at\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "manuals",
+          "updated_at"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"updated_at\"",
+        "sql": "ALTER TABLE \"public\".\"manuals\" ADD COLUMN \"updated_at\" timestamptz"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"updated_at\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "manuals",
+          "updated_at"
+        ]
+      },
+      {
+        "description": "verify column \"updated_at\" has type \"timestamp with time zone\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_attribute\" AS \"a\" INNER JOIN \"pg_class\" AS \"c\" ON \"c\".\"oid\" = \"a\".\"attrelid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"relnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"c\".\"relname\" = $2 AND \"a\".\"attname\" = $3 AND (format_type(\"a\".\"atttypid\", \"a\".\"atttypmod\")) = $4 AND NOT (\"a\".\"attisdropped\"))) AS \"result\"",
+        "params": [
+          "public",
+          "manuals",
+          "updated_at",
+          "timestamp with time zone"
+        ]
+      }
+    ]
+  }
+]

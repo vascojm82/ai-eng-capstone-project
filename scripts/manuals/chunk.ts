@@ -19,6 +19,7 @@
  */
 
 import { mkdirSync, writeFileSync } from "fs";
+import { pathToFileURL } from "url";
 import { db } from "../../src/prisma/db.ts";
 import { CHUNKS_DIR, chunkFilePath, embeddingText, manualPdfPath, type Chunk } from "./chunk-file.ts";
 import { readPages, type Line, type Page } from "./extract.ts";
@@ -427,7 +428,7 @@ function pageChunks(
 // One manual
 // ---------------------------------------------------------------------------
 
-type ManualStats = {
+export type ManualStats = {
   pages: number;
   skipped: Record<string, number>;
   chunks: number;
@@ -435,7 +436,7 @@ type ManualStats = {
   family: Family;
 };
 
-function chunkManual(docCode: string, manualTitle: string, pdfPath: string): { chunks: Chunk[]; stats: ManualStats } {
+export function chunkManual(docCode: string, manualTitle: string, pdfPath: string): { chunks: Chunk[]; stats: ManualStats } {
   const pages = [...readPages(pdfPath)];
   const family = detectFamily(pages);
   const familyLayout = LAYOUTS[family];
@@ -589,9 +590,12 @@ async function main() {
   console.log(`\nWrote ${total} chunks for ${manuals.length} manuals to ${CHUNKS_DIR}/`);
 }
 
-main()
-  .catch((err) => {
-    console.error(err);
-    process.exitCode = 1;
-  })
-  .finally(() => db.close());
+// Only when run as a script: update.ts imports chunkManual
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main()
+    .catch((err) => {
+      console.error(err);
+      process.exitCode = 1;
+    })
+    .finally(() => db.close());
+}

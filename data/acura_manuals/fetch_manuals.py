@@ -14,6 +14,14 @@ Many trims share one manual, so PDFs are deduped by URL.
 Usage:
   python3 fetch_manuals.py --year 2025 --out manuals_2025
   python3 fetch_manuals.py --year 2025 --list-only     # write manifest, no PDFs
+  python3 fetch_manuals.py --years 2026 2027 --root staging   # staging/manuals_2026, staging/manuals_2027
+  python3 fetch_manuals.py --years 2026 --known known.json    # skip PDFs whose server headers match
+  python3 fetch_manuals.py --year 2026 --links-only    # no network: rebuild by_trim/ and MAPPING.txt
+
+Each run also writes downloads.json next to manifest.csv: per PDF, whether it
+was downloaded, kept (already on disk), unchanged (its Content-Length and
+Last-Modified match --known, so it wasn't downloaded) or failed, with those
+headers. `npm run manuals:check` (scripts/manuals/update.ts) reads it.
 """
 import argparse
 import csv
@@ -153,27 +161,76 @@ class Aura:
         raise RuntimeError(f"{classname}.{method} failed: {err}")
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--year", default="2025")
-    ap.add_argument("--division", default="Acura")
-    ap.add_argument("--division-id", default="B", help="B = Acura, A = Honda")
-    ap.add_argument("--out", default=None, help="output dir (default: manuals_<year>)")
-    ap.add_argument("--delay", type=float, default=1.0, help="seconds between requests")
-    ap.add_argument("--list-only", action="store_true", help="write manifest only, skip PDF downloads")
-    args = ap.parse_args()
+def read_manifest(out):
+    with open(out / "manifest.csv", newline="") as f:
+        return list(csv.DictReader(f))
 
-    out = Path(args.out or f"manuals_{args.year}")
+
+def write_manifest(out, manifest):
+    with open(out / "manifest.csv", "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=["year", "model", "trim", "model_id", "title", "file", "url"], restval="")
+        w.writeheader()
+        w.writerows(manifest)
+
+
+def server_headers(r):
+    size = r.headers.get("Content-Length")
+    return {"size": int(size) if size and size.isdigit() else None, "last_modified": r.headers.get("Last-Modified")}
+
+
+def unchanged_on_server(s, url, verify, known):
+    """True when the server's Content-Length and Last-Modified match the known ones (both must be present)"""
+    if not (known and known.get("size") and known.get("last_modified")):
+        return False, None
+    try:
+        r = s.head(url, timeout=60, verify=verify, allow_redirects=True)
+    except requests.RequestException:
+        return False, None
+    if not r.ok:
+        return False, None
+    headers = server_headers(r)
+    return headers["size"] == known["size"] and headers["last_modified"] == known["last_modified"], headers
+
+
+def download(s, pdfs, out, verify, known, delay):
+    """Download the PDFs into out/raw; returns {file name: {status, size, last_modified[, error]}}"""
+    (out / "raw").mkdir(exist_ok=True)
+    results = {}
+    for u in pdfs:
+        name = u.rsplit("/", 1)[-1]
+        dest = out / "raw" / name
+        if dest.exists() and dest.stat().st_size > 0:
+            results[name] = {"status": "kept", "size": None, "last_modified": None}
+            continue
+        same, headers = unchanged_on_server(s, u, verify, known.get(name))
+        if same:
+            results[name] = {"status": "unchanged", **headers}
+            print(f"  unchanged {name}")
+            time.sleep(delay)
+            continue
+        try:
+            r = s.get(u, timeout=120, verify=verify)
+            ok = r.ok and r.content[:4] == b"%PDF"
+            error = None if ok else f"HTTP {r.status_code}" if not r.ok else "not a PDF"
+        except requests.RequestException as e:
+            ok, error = False, str(e)
+        if ok:
+            dest.write_bytes(r.content)
+            headers = server_headers(r)
+            results[name] = {"status": "downloaded", "size": headers["size"] or len(r.content),
+                             "last_modified": headers["last_modified"]}
+            print(f"  saved {dest.name} ({len(r.content) // 1024} KB)")
+        else:
+            results[name] = {"status": "failed", "size": None, "last_modified": None, "error": error}
+            print(f"  FAILED {u} ({error})")
+        time.sleep(delay)
+    return results
+
+
+def fetch_year(aura, s, verify, all_rows, year, out, args, known):
     out.mkdir(parents=True, exist_ok=True)
-
-    s = requests.Session()
-    s.headers["User-Agent"] = UA
-    aura = Aura(s)
-    pdf_verify = ca_bundle(Path(__file__).with_name("ca_bundle.pem"))
-
-    rows = aura.apex("FindProductController", "getProductChooserData", {"division": args.division})
-    rows = [r for r in rows if r.get("Tier1__c") == args.year]
-    print(f"{len(rows)} {args.year} {args.division} year/model/trim rows")
+    rows = [r for r in all_rows if r.get("Tier1__c") == year]
+    print(f"{len(rows)} {year} {args.division} year/model/trim rows")
 
     manifest = []
     for r in rows:
@@ -194,14 +251,8 @@ def main():
             })
         time.sleep(args.delay)
 
-    def write_manifest():
-        with open(out / "manifest.csv", "w", newline="") as f:
-            w = csv.DictWriter(f, fieldnames=["year", "model", "trim", "model_id", "title", "file", "url"], restval="")
-            w.writeheader()
-            w.writerows(manifest)
-
-    write_manifest()
-    write_mapping(out, manifest, args.year)
+    write_manifest(out, manifest)
+    write_mapping(out, manifest, year)
     urls = sorted({m["url"] for m in manifest})
     pdfs = [u for u in urls if u.upper().endswith(".PDF")]
     print(f"manifest.csv written: {len(manifest)} rows, {len(urls)} unique URLs, {len(pdfs)} PDFs")
@@ -210,23 +261,58 @@ def main():
     if args.list_only:
         return
 
-    (out / "raw").mkdir(exist_ok=True)
-    for u in pdfs:
-        dest = out / "raw" / u.rsplit("/", 1)[-1]
-        if dest.exists() and dest.stat().st_size > 0:
-            continue
-        r = s.get(u, timeout=120, verify=pdf_verify)
-        if r.ok and r.content[:4] == b"%PDF":
-            dest.write_bytes(r.content)
-            print(f"  saved {dest.name} ({len(r.content) // 1024} KB)")
-        else:
-            print(f"  FAILED {u} ({r.status_code})")
-        time.sleep(args.delay)
+    results = download(s, pdfs, out, verify, known, args.delay)
+    (out / "downloads.json").write_text(json.dumps(results, indent=2))
 
     link_by_trim(out, manifest)
-    write_manifest()
-    write_mapping(out, manifest, args.year)
+    write_manifest(out, manifest)
+    write_mapping(out, manifest, year)
     print(f"by_trim/ written under {out}")
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--year", default=None, help="one model year (default 2025)")
+    ap.add_argument("--years", nargs="+", help="several model years, each in <root>/manuals_<year>")
+    ap.add_argument("--root", default=".", help="with --years: the folder that holds the manuals_<year> folders")
+    ap.add_argument("--division", default="Acura")
+    ap.add_argument("--division-id", default="B", help="B = Acura, A = Honda")
+    ap.add_argument("--out", default=None, help="output dir (default: manuals_<year>)")
+    ap.add_argument("--delay", type=float, default=1.0, help="seconds between requests")
+    ap.add_argument("--list-only", action="store_true", help="write manifest only, skip PDF downloads")
+    ap.add_argument("--known", default=None,
+                    help="JSON of {file name: {size, last_modified}}: PDFs whose server headers still match aren't downloaded")
+    ap.add_argument("--links-only", action="store_true",
+                    help="no network: rebuild by_trim/, MAPPING.txt and manifest.csv's file column from manifest.csv and raw/")
+    args = ap.parse_args()
+
+    if args.years:
+        if args.out:
+            sys.exit("--out is for --year; use --root with --years")
+        targets = [(y, Path(args.root) / f"manuals_{y}") for y in args.years]
+    else:
+        year = args.year or "2025"
+        targets = [(year, Path(args.out or f"manuals_{year}"))]
+
+    if args.links_only:
+        for year, out in targets:
+            manifest = read_manifest(out)
+            link_by_trim(out, manifest)
+            write_manifest(out, manifest)
+            write_mapping(out, manifest, year)
+            print(f"by_trim/ and MAPPING.txt rebuilt under {out}")
+        return
+
+    known = json.loads(Path(args.known).read_text()) if args.known else {}
+
+    s = requests.Session()
+    s.headers["User-Agent"] = UA
+    aura = Aura(s)
+    pdf_verify = ca_bundle(Path(__file__).with_name("ca_bundle.pem"))
+
+    all_rows = aura.apex("FindProductController", "getProductChooserData", {"division": args.division})
+    for year, out in targets:
+        fetch_year(aura, s, pdf_verify, all_rows, year, out, args, known)
 
 
 if __name__ == "__main__":

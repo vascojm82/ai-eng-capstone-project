@@ -178,6 +178,71 @@ The manuals have a very regular layout, so the chunker follows it instead of cut
 - **Three layout families** are recognized by their fonts: the classic Honda layout, the 2025+ ADX layout, and the GM-built 2024 ZDX.
 - **Skipped:** covers, blank pages, contents and index pages.
 
+### Updating the manuals
+
+Acura publishes new and revised manuals about once a year. Two commands find them and replace only those, without re-processing everything:
+
+```sh
+npm run manuals:check     # what changed? Changes nothing in the database or in raw/
+npm run manuals:update    # apply that check
+```
+
+**`manuals:check`** checks the model years already in the `manuals` table (today 2022–2026), plus every newer year up to next year's models (today 2027). It doesn't ask the owner site which years exist, so years before the oldest one in the database are never checked unless you name them (see [Adding earlier model years](#adding-earlier-model-years)). The check:
+
+1. Runs `fetch_manuals.py` into `data/acura_manuals/staging/`: fresh manifests and PDFs. A PDF whose size and date on the server match the ones stored in the database (`source_size`, `source_last_modified`) isn't downloaded again.
+2. Compares each downloaded PDF's SHA-256 with `manuals.sha256`. A new doc code is a **new** manual (usually the next model year); a different hash is a **revised** one.
+3. Validates every new or revised PDF: it must open, have at least 20 pages, and chunk into no more than 30% more or fewer chunks than its previous version (or, for a new manual, the closest year's manual of the same model). A bigger difference usually means a new page layout the chunker doesn't know.
+4. Prints a report:
+
+```
+Checked 2022, 2023, 2024, 2025, 2026, 2027: 42 manuals listed
+New        5
+    B3S52727OMEN  2027 Integra Owner's Manual  780 pages → 752 chunks (B3S52626OMEN: 746), honda layout
+Revised    1
+    BTYA2626OMEN  2026 MDX Owner's Manual  818 pages → 771 chunks (BTYA2626OMEN: 769), honda layout
+Unchanged  36
+Manifest changes: 2027: new (42 rows); 2026: +2 −0 rows
+
+Run "npm run manuals:update" to apply.
+```
+
+**`manuals:update`** applies the last check (it runs one first when there's none or it's more than 3 days old) and refuses while the check lists problems:
+
+1. Moves the replaced PDFs to `data/acura_manuals/archive/<date>/`, puts the new ones in `raw/` and copies the new manifests.
+2. Runs `npm run db:seed`. When a PDF's hash changed, the seed keeps the old one in `previous_sha256`, sets `updated_at` and clears `ingested_at`.
+3. Runs `npm run manuals:upload`, which embeds every manual with an empty `ingested_at` (the new and revised ones) and replaces each manual's chunks in one transaction. The assistant keeps answering from the old chunks until then.
+4. Deletes `staging/`. If the update stops halfway (network, OpenAI), run it again: it resumes with the database steps.
+
+Afterwards: run `npm run evals`, and commit the changed `manifest.csv` files. No code changes are needed for a **new model year**: the agent reads the models and years from the database (reloaded every 10 minutes, or right away after a restart or deploy). Only the "unknown year" eval case asks about a fixed year (2027); once 2027 manuals are in, move it to a year without manuals.
+
+**When the check reports a problem:**
+
+| Problem | What to do |
+|---|---|
+| `download failed (HTTP 503)` | The owner site is down or busy (it shows "Site down for maintenance"); run the check again later. |
+| `The site listed no <year> manuals` | The owner site changed how it lists vehicles; `fetch_manuals.py` needs updating. |
+| `… chunks vs … (+45%)` or `no chunks` | Look at the new PDF in `staging/manuals_<year>/raw/` and its chunks in `staging/chunks/`. Usually a new layout: add it to `LAYOUTS` in [chunk.ts](scripts/manuals/chunk.ts) (see [CHUNKING.md](scripts/manuals/CHUNKING.md)), then check again. If the manual really did grow or shrink that much, apply it by hand: copy the PDF into `raw/`, then `npm run db:seed`, `npm run manuals:chunk -- <DOC_CODE>`, `npm run manuals:upload`. |
+
+**Rolling back a revised manual:** move its PDF back from `archive/<date>/` to `raw/`, then `npm run db:seed`, `npm run manuals:chunk -- <DOC_CODE>` and `npm run manuals:upload`.
+
+`fetch_manuals.py` needs Python with `requests` and `certifi`. If `python3` on your PATH doesn't have them, point the commands at one that does: `PYTHON=/opt/anaconda3/bin/python3 npm run manuals:check`.
+
+#### Adding earlier model years
+
+To cover years before the oldest one in the database, name them:
+
+```sh
+npm run manuals:check -- --years 2020 2021
+npm run manuals:update -- --years 2020 2021
+```
+
+- `--years` **replaces** the default list rather than adding to it, so this check looks only at 2020 and 2021.
+- The update downloads those years' PDFs and manifests and adds the manuals and trims, the same way as for a new model year. Every manual is new, so the 30% chunk-count check compares it with the closest year's manual of the same model, if there is one. Older manuals may use a page layout the chunker doesn't know, which the check reports as a problem.
+- After that, the years are in the database, so every later `npm run manuals:check` includes them automatically.
+- The agent and the login page don't list years, so no code changes are needed: the agent reads the years from the database (reloaded every 10 minutes, or right away after a restart or deploy).
+
+Pass `--years` the same way to check any other set of years, e.g. `npm run manuals:check -- --years 2026` to look at one year only.
+
 ---
 
 ## 5. The database
@@ -208,6 +273,8 @@ erDiagram
         text source_url
         int page_count
         timestamptz ingested_at
+        text previous_sha256
+        timestamptz updated_at
     }
     chunks {
         serial chunk_id PK
@@ -253,7 +320,7 @@ flowchart TD
 
 **What's enforced in code rather than left to the model**
 
-- **The vehicle:** `knownVehicle()` scans the user's messages newest first. The model comes from the latest message naming one; the year from that message or one naming no model. A message about a different car ends the scan, so "2026 Integra…" then "my MDX?" makes the agent ask for the MDX's year.
+- **The vehicle:** `knownVehicle()` scans the user's messages newest first. The model comes from the latest message naming one; the year from that message or one naming no model. A message about a different car ends the scan, so "2026 Integra…" then "my MDX?" makes the agent ask for the MDX's year. The model sometimes ignored that and searched for a "2026 MDX" anyway, so while the year is unknown, `search_manuals` refuses a query that gives the model a year and tells it to ask.
 - **The conversation window:** the model sees only the last 5 messages; the vehicle is still found in the whole conversation the client sends (up to 30).
 - **Exact rejections:** if a reply contains one of the fixed reject sentences, only that sentence is returned.
 - **Citations → sources:** only the pages the reply actually cites are returned as `sources`.
@@ -344,7 +411,7 @@ A single-page React app in [`web/`](web), built by Vite into `dist/public` and s
 ├── scripts/
 │   ├── db/seed.ts             # npm run db:seed
 │   ├── db/schema.md           # schema diagram and column list
-│   ├── manuals/               # chunk.ts, extract.ts, upload.ts + CHUNKING.md, UPLOADING.md
+│   ├── manuals/               # chunk.ts, extract.ts, upload.ts, update.ts (check/update), manifest.ts + CHUNKING.md, UPLOADING.md
 │   └── auth/create-users.ts   # npm run auth:users
 ├── src/prisma/                # contract.prisma (schema), generated contract, db.ts
 ├── migrations/                # Prisma migrations (applied on deploy)
@@ -440,6 +507,8 @@ npm run manuals:upload
 ```
 
 Re-running any step is safe: the seed and the upload replace rows instead of duplicating them, and `manuals:upload` without arguments continues with manuals not uploaded yet.
+
+Later, when Acura publishes new or revised manuals, use `npm run manuals:check` and `npm run manuals:update` instead (see [Updating the manuals](#updating-the-manuals)).
 
 ### 6. Phone agent (optional)
 
@@ -694,6 +763,7 @@ rm cookies.txt
 | `PORT` | no | `.env` | Local port (default 3000; Prisma sets it) |
 | `TYPESAFE_API_KEY` | evals only | `.env` | The TypeSafe judge that scores the evals' answers (`npm run evals`) |
 | `EVALS_PORT` | no | shell or `.env` | Port of the server the evals start (default 3100) |
+| `PYTHON` | no | shell or `.env` | The Python that `manuals:check` / `manuals:update` run `fetch_manuals.py` with (default `python3`; it needs `requests` and `certifi`) |
 
 ### Tuning constants
 
@@ -726,6 +796,8 @@ rm cookies.txt
 | `npm run db:seed` | Fill vehicles, manuals and links from the manifests |
 | `npm run manuals:chunk` | Chunk the PDFs into `data/chunks/` (`-- <DOC_CODE> --show <pages>` to inspect) |
 | `npm run manuals:upload` | Embed and store chunks (`-- --dry-run`, `-- --force`, `-- <DOC_CODE>`) |
+| `npm run manuals:check` | Find new and revised manuals on the owner site and validate them, without changing anything (`-- --years 2026 2027`); see [Updating the manuals](#updating-the-manuals) |
+| `npm run manuals:update` | Apply the last check: replace only the new and revised manuals (PDFs, rows, chunks, embeddings) |
 | `npm run voice:setup` | Create or update the Retell phone agent (LLM, agent, and the `RETELL_PHONE_NUMBER` it answers); `-- --dry-run` prints the settings without changing anything. Safe to re-run |
 | `npm run voice:on` / `voice:off` | Turn the demo phone line on or off: assign or remove the agent on `RETELL_PHONE_NUMBER`, so Retell only answers (and bills) during demos. The number is kept |
 | `npm run voice:status` | Show whether the phone line is on |
@@ -766,6 +838,7 @@ Run `npm run voice:on`, call the number and say:
 | Dealer notice | "How do I change the oil on my 2026 Integra?" | The dealer appointment recommendation first, then the main steps |
 | Off-topic | "What's the capital of Ecuador?" | "Please ask a question about Acura cars." |
 | Goodbye | "No, that's all, thanks." | Says goodbye and hangs up |
+| Abusive caller | Insult the agent or swear at it | "I'm ending this call because of abusive language. Goodbye.", then hangs up. A mild swear about the car ("this damn light keeps coming on") doesn't count: it keeps helping |
 | Line off | Run `npm run voice:off`, then call | The agent doesn't answer (what the caller hears instead is up to Retell) |
 
 ### Automated evals
@@ -808,7 +881,7 @@ Write the criteria as something the judge can check from the reply alone, includ
 
 > **Keep a run under 20 requests.** Each user gets 20 questions per hour ([section 7](#7-login-and-usage-limits)), and each case uses one request plus one for each `history` message. Today's 13 cases use 16 requests. Going over makes the later cases fail with `429`.
 
-The agent's answers vary a little from run to run, so a case can fail now and then even without a code change. Rerun only that case (`--testNamePattern`) to check: if it fails only sometimes, it's a real but intermittent problem in the agent. For example, the "switching cars" case once answered for an MDX without asking for its year.
+The agent's answers vary a little from run to run, so a case can fail now and then even without a code change. Rerun only that case (`--testNamePattern`) to check: if it fails only sometimes, it's a real but intermittent problem in the agent. For example, the "switching cars" case used to fail about half the time, answering for a 2026 MDX without asking for its year, until `search_manuals` started refusing years the user hadn't given (section 6).
 
 ---
 
@@ -829,18 +902,21 @@ The agent's answers vary a little from run to run, so a case can fail now and th
 | Evals: every case fails with `401 Cannot authenticate` | `TYPESAFE_API_KEY` in `.env` is missing or isn't a TypeSafe key. |
 | Evals: `Port 3100 is already in use` | Another process (often an earlier eval run that didn't stop) is on that port. Stop it, or run with `EVALS_PORT=3200 npm run evals`. |
 | Evals: cases fail with `expected 400` / `401` / `503` from `/api/chat` | The evals' server can't answer: check `DATABASE_URL`, `OPENAI_API_KEY` and `SESSION_SECRET` in `.env` (`npm run dev` shows the same problem). `429` means a run made more than 20 requests. |
+| `manuals:check`: `fetch_manuals.py failed` | The owner site is down, or `python3` lacks `requests`/`certifi`: run with `PYTHON=/path/to/python3`. Other check problems are explained in [Updating the manuals](#updating-the-manuals). |
+| `column manuals.previous_sha256 does not exist` (from `manuals:check`, `db:seed`, `manuals:chunk` or `manuals:upload`) | The database is missing the latest migration: deploy, or run `npx prisma db migrate`. |
 | The phone number doesn't answer | The line is off: `npm run voice:status`, then `npm run voice:on`. |
 | On a call, the agent says it couldn't check the manual | The tool can't reach your app. Check `RETELL_TOOL_URL` in `.env` (and that ngrok is still running if you were testing locally), then `npm run voice:setup`. |
 | `/api/voice/ask` returns `401` (ngrok inspector or logs) | The signature doesn't match: `RETELL_API_KEY` isn't the key with the webhook badge from the workspace that owns the agent, or differs between `.env` and Prisma. |
 | `/api/voice/ask` returns `503` | `RETELL_API_KEY` isn't set on the server (Prisma env vars, or `.env` locally). |
 | `voice:setup` stops asking for `RETELL_TOOL_URL` or `RETELL_PHONE_NUMBER` | Add them to `.env` (see [Setup step 6](#6-phone-agent-optional)). |
 | The agent speaks too fast or too slow | Change `voice_speed` in `scripts/voice/setup-retell.ts` (0.5–2, default 1) and run `npm run voice:setup`. |
+| The agent reacts to other voices or noise around the caller, or cuts off a quiet caller | The agent removes noise and background speech (`denoising_mode: "noise-and-background-speech-cancellation"` in `scripts/voice/setup-retell.ts`). Change `denoising_enhancement_level` there, Retell's "Speech Removal Strength" (0–1, default 0.8): higher filters more background speech, lower keeps more of a quiet caller's voice. Then run `npm run voice:setup`. |
 
 ---
 
 ## 18. Known limitations
 
-- **Coverage:** US manuals, model years 2022–2026; no interactive (HTML) manuals.
+- **Coverage:** US manuals, model years 2022–2026 today (whatever years are in the database); no interactive (HTML) manuals.
 - **Vehicle detection** needs the model name and a year ("2026" or "'26"); typos or nicknames make the assistant ask.
 - **Extraction:** some illustration callouts and table cells come out in an unusual order; values stay inside their own table.
 - **Limits and sessions** are per server process (in memory); a restart resets the counters.

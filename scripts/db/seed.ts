@@ -7,85 +7,28 @@
  * BTYA2626OMEN) and inserted once; vehicle_manuals links every trim to it.
  * Only PDF manuals are seeded: the interactive (HTML) manuals in the
  * manifests are skipped. Everything is upserted on its unique key, so
- * re-running is safe.
+ * re-running is safe. When a manual's PDF has changed (its hash differs),
+ * the old hash is kept in previous_sha256 and ingested_at is cleared, so
+ * `npm run manuals:upload` replaces its chunks.
  *
  * Usage:
  *   npm run db:seed
  *   npm run db:seed -- <manuals dir>
  */
 
-import { createHash } from "crypto";
-import { createReadStream, existsSync, readdirSync, readFileSync } from "fs";
+import { existsSync, readdirSync } from "fs";
 import { join } from "path";
 import { db } from "../../src/prisma/db.ts";
+import { docCodeFromUrl, isPdfRow, readManifest, sha256, splitEdition } from "../manuals/manifest.ts";
 
 const DEFAULT_DIR = "data/acura_manuals";
 const MARKET = "US";
 const LANGUAGE = "en-US";
 
-type ManifestRow = {
-  year: string;
-  model: string;
-  trim: string;
-  model_id: string;
-  title: string;
-  file: string;
-  url: string;
-};
-
 type ManualType = "owner" | "navigation";
-
-/** Minimal CSV parser: handles quoted fields, escaped quotes and commas inside quotes */
-function parseCsv(text: string): ManifestRow[] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = "";
-  let inQuotes = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (inQuotes) {
-      if (ch === '"' && text[i + 1] === '"') { field += '"'; i++; }
-      else if (ch === '"') inQuotes = false;
-      else field += ch;
-    } else if (ch === '"') inQuotes = true;
-    else if (ch === ",") { row.push(field); field = ""; }
-    else if (ch === "\n" || ch === "\r") {
-      if (ch === "\r" && text[i + 1] === "\n") i++;
-      row.push(field); field = "";
-      if (row.some((f) => f !== "")) rows.push(row);
-      row = [];
-    } else field += ch;
-  }
-  if (field !== "" || row.length > 0) { row.push(field); rows.push(row); }
-
-  const [header, ...body] = rows;
-  return body.map((r) => Object.fromEntries(header.map((h, i) => [h, r[i] ?? ""])) as ManifestRow);
-}
-
-/** File code from the manual URL: .../BTYA2626OMEN.PDF -> BTYA2626OMEN */
-function docCodeFromUrl(url: string): string {
-  const file = new URL(url).pathname.split("/").pop()!;
-  return file.replace(/\.[^.]+$/, "");
-}
 
 function manualTypeFromTitle(title: string): ManualType {
   return /navigation/i.test(title) ? "navigation" : "owner";
-}
-
-/** "2022 MDX Owner's Manual (Revised 2021-12-16)" -> { title: "2022 MDX Owner's Manual", edition: "Revised 2021-12-16" } */
-function splitEdition(title: string): { title: string; edition: string | null } {
-  const match = title.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
-  return match ? { title: match[1], edition: match[2] } : { title, edition: null };
-}
-
-function sha256(path: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const hash = createHash("sha256");
-    createReadStream(path)
-      .on("data", (chunk) => hash.update(chunk))
-      .on("end", () => resolve(hash.digest("hex")))
-      .on("error", reject);
-  });
 }
 
 async function main() {
@@ -99,15 +42,19 @@ async function main() {
   }
 
   const allRows = yearDirs.flatMap((d) =>
-    parseCsv(readFileSync(join(dir, d, "manifest.csv"), "utf-8")).map((row) => ({ ...row, yearDir: d })),
+    readManifest(join(dir, d, "manifest.csv")).map((row) => ({ ...row, yearDir: d })),
   );
-  const rows = allRows.filter((row) => /\.pdf$/i.test(row.url));
+  const rows = allRows.filter(isPdfRow);
   console.log(
     `Read ${allRows.length} manifest rows from ${yearDirs.length} years (${allRows.length - rows.length} non-PDF rows skipped)`,
   );
 
   // Manuals first, once per doc_code
+  const oldHashes = new Map(
+    [...(await db.orm.public.Manual.select("docCode", "sha256").all())].map((m) => [m.docCode, m.sha256]),
+  );
   const manualIds = new Map<string, number>();
+  const revised: string[] = [];
   for (const row of rows) {
     const docCode = docCodeFromUrl(row.url);
     if (manualIds.has(docCode)) continue;
@@ -119,6 +66,14 @@ async function main() {
       console.warn(`Warning: ${docCode} has no local PDF at ${pdfPath}; seeding it without a hash`);
     }
 
+    // A new version of the PDF: keep the old hash and clear ingested_at, so
+    // `npm run manuals:upload` replaces the manual's chunks
+    const hash = hasPdf ? await sha256(pdfPath) : null;
+    const oldHash = oldHashes.get(docCode);
+    const isRevision = !!oldHash && !!hash && oldHash !== hash;
+    const revision = isRevision ? { previousSha256: oldHash, updatedAt: new Date().toISOString(), ingestedAt: null } : {};
+    if (isRevision) revised.push(docCode);
+
     const fields = {
       title,
       manualType: manualTypeFromTitle(row.title),
@@ -126,7 +81,8 @@ async function main() {
       language: LANGUAGE,
       edition,
       sourceUrl: row.url,
-      sha256: hasPdf ? await sha256(pdfPath) : null,
+      sha256: hash,
+      ...revision,
     } as const;
     const manual = await db.orm.public.Manual.upsert({
       create: { docCode, ...fields },
@@ -136,6 +92,9 @@ async function main() {
     manualIds.set(docCode, manual.id);
   }
   console.log(`Upserted ${manualIds.size} manuals`);
+  if (revised.length > 0) {
+    console.log(`New PDF versions (marked for "npm run manuals:upload"): ${revised.join(", ")}`);
+  }
 
   // Then one vehicle per year/model/trim, linked to its manual
   const vehicleIds = new Map<string, number>();

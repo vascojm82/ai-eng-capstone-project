@@ -188,10 +188,31 @@
                   "kind": "scalar"
                 }
               },
+              "previousSha256": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "sha256": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sourceLastModified": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sourceSize": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
                   "kind": "scalar"
                 }
               },
@@ -206,6 +227,13 @@
                 "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
                   "kind": "scalar"
                 }
               },
@@ -272,14 +300,26 @@
                 "pageCount": {
                   "column": "page_count"
                 },
+                "previousSha256": {
+                  "column": "previous_sha256"
+                },
                 "sha256": {
                   "column": "sha256"
+                },
+                "sourceLastModified": {
+                  "column": "source_last_modified"
+                },
+                "sourceSize": {
+                  "column": "source_size"
                 },
                 "sourceUrl": {
                   "column": "source_url"
                 },
                 "title": {
                   "column": "title"
+                },
+                "updatedAt": {
+                  "column": "updated_at"
                 },
                 "year": {
                   "column": "year"
@@ -596,9 +636,24 @@
                   "dataType": "pg/int4",
                   "nullable": true
                 },
+                "previous_sha256": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
                 "sha256": {
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
+                  "nullable": true
+                },
+                "source_last_modified": {
+                  "codecId": "pg/text@1",
+                  "dataType": "pg/text",
+                  "nullable": true
+                },
+                "source_size": {
+                  "codecId": "pg/int4@1",
+                  "dataType": "pg/int4",
                   "nullable": true
                 },
                 "source_url": {
@@ -610,6 +665,11 @@
                   "codecId": "pg/text@1",
                   "dataType": "pg/text",
                   "nullable": false
+                },
+                "updated_at": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "dataType": "pg/timestamptz",
+                  "nullable": true
                 },
                 "year": {
                   "codecId": "pg/int4@1",
@@ -801,7 +861,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "b2836d39d80b94afd1e9de968455bc3fa804d5865bb6ba34b0c08e050bc7bf88"
+    "storageHash": "84297d9e6d333fc3f2808eebe32bfc49d01e5bdfcaa2cec27d1b60f682f2e5d8"
   },
   "capabilities": {
     "postgres": {

@@ -49,7 +49,7 @@ export default function LoginPage({ onLoggedIn }: { onLoggedIn: (user: User) => 
               </Avatar>
               <Typography variant="h5">Service Assistant</Typography>
               <Typography variant="body2" color="text.secondary" align="center">
-                Answers from Acura owner's and navigation manuals, model years 2022–2026
+                Answers from Acura owner's and navigation manuals
               </Typography>
             </Stack>
 

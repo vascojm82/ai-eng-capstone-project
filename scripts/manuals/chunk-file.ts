@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 
 export const CHUNKS_DIR = "data/chunks";
-const MANUALS_DIR = "data/acura_manuals";
+export const MANUALS_DIR = "data/acura_manuals";
 
 /** The local copy of a manual's PDF */
 export const manualPdfPath = (year: number, docCode: string) =>
