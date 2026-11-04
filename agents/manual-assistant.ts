@@ -13,8 +13,12 @@
  * conversation, so the server keeps no state between messages. The model sees
  * only the last HISTORY_MESSAGES of it, but the vehicle is looked up in all of
  * it, so a car named early in a long chat isn't forgotten.
+ *
+ * With LangSmith tracing on (lib/tracing.ts), each runAgent() call is one
+ * trace: the model calls, and each tool call with what it returned.
  */
 
+import { traceable } from "langsmith/traceable";
 import type OpenAI from "openai";
 import type { Db } from "../lib/config.ts";
 import { openai } from "../lib/openai.ts";
@@ -237,6 +241,16 @@ async function runTool(
   return { output: { error: `Unknown tool ${name}` }, status: "error" };
 }
 
+/** runTool() as a step of the trace, named after the tool, with the arguments and output the model saw */
+function tracedTool(name: string) {
+  return traceable(runTool, {
+    name,
+    run_type: "tool",
+    processInputs: ({ args }) => args[2],
+    processOutputs: ({ output }) => ({ output }),
+  });
+}
+
 /** Page numbers cited in the reply: "p. 634", "pp. 136-137", "pp. 136, 137", "pages 136–138" */
 function citedPages(reply: string): Set<number> {
   const pages = new Set<number>();
@@ -331,7 +345,7 @@ async function knownVehicle(db: Db, conversation: ChatMessage[]): Promise<KnownV
 }
 
 /** `voice`: the reply will be read aloud on a phone call (short, plain sentences, no citations) */
-export async function runAgent(
+async function answer(
   db: Db,
   conversation: ChatMessage[],
   { voice = false }: { voice?: boolean } = {},
@@ -379,7 +393,7 @@ export async function runAgent(
       } catch {
         // malformed arguments: the tool gets none and reports what's missing
       }
-      const { output, status, results: found } = await runTool(db, call.function.name, args, vehicle);
+      const { output, status, results: found } = await tracedTool(call.function.name)(db, call.function.name, args, vehicle);
       steps.push({ tool: call.function.name, args, status });
       if (found) results.push(...found);
       messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(output) });
@@ -392,3 +406,17 @@ export async function runAgent(
     steps,
   };
 }
+
+/**
+ * Answers the latest message of the conversation, as one LangSmith trace.
+ * The trace's input is the conversation and where it came from (web chat or
+ * phone), not the database client.
+ */
+export const runAgent = traceable(answer, {
+  name: "Service Assistant",
+  run_type: "chain",
+  processInputs: ({ args: [, conversation, options] }) => ({
+    conversation,
+    channel: options?.voice ? "phone" : "web",
+  }),
+});

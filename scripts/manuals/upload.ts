@@ -24,6 +24,10 @@ import { createEmbeddings, EMBEDDING_DIMENSIONS } from "../../lib/openai.ts";
 import { db } from "../../src/prisma/db.ts";
 import { embeddingText, manualPdfPath, readChunkFile, type Chunk } from "./chunk-file.ts";
 
+// Not traced in LangSmith even when .env turns tracing on: hundreds of embedding
+// requests per run would bury the traces of real questions
+process.env.LANGSMITH_TRACING = "false";
+
 const BATCH_SIZE = 100; // chunks per embedding request and per insert
 const CONCURRENCY = 4; // embedding requests in flight at once
 const MAX_ATTEMPTS = 5; // per embedding request, with exponential backoff

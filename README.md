@@ -335,6 +335,26 @@ flowchart TD
 | Engine oil, transmission fluid or brake pad change | Starts with "We advise you to set up an appointment to get this done with an Acura dealer.", then the manual's steps if it has them |
 | Anything else about an Acura | Searched and answered from the manual, with citations |
 
+### Tracing with LangSmith
+
+With tracing on, every question (web chat or phone) is one trace in [LangSmith](https://smith.langchain.com), under the agent **service-assistant**:
+
+```
+Service Assistant [chain]   inputs: conversation, channel (web | phone)
+├── ChatOpenAI [llm]        the model decides to search
+├── search_manuals [tool]   query, k → the passages the model saw
+└── ChatOpenAI [llm]        the answer, with tokens and cost
+```
+
+- [`lib/openai.ts`](lib/openai.ts) wraps the OpenAI client with `wrapOpenAI()`, so model calls are recorded.
+- [`agents/manual-assistant.ts`](agents/manual-assistant.ts) wraps `runAgent()` and each tool call with `traceable()`, so they're grouped into one trace. The database client isn't recorded.
+- [`lib/tracing.ts`](lib/tracing.ts) passes the settings to the SDK on Prisma, and the server sends the queued traces before it stops (`SIGTERM`).
+- Each environment has its own traces: `LANGSMITH_AGENT_ENVIRONMENT` is `local` in `.env`, `production` on Prisma's production and `staging` on previews.
+- `manuals:upload` is never traced (its hundreds of embedding requests would bury the real questions). The evals' questions are traced, as `local`.
+- Traces store the questions and answers on LangSmith's servers. Phone traces contain only the question, not the caller's number.
+
+To turn tracing off, set `LANGSMITH_TRACING=false` (in `.env`, or on Prisma and redeploy).
+
 ---
 
 ## 7. Login and usage limits
@@ -400,7 +420,8 @@ A single-page React app in [`web/`](web), built by Vite into `dist/public` and s
 │   ├── vehicles.ts            # year/model detection in text
 │   ├── auth.ts                # password hashing, signed session cookie, requireAuth
 │   ├── limits.ts              # usage limits
-│   ├── openai.ts              # OpenAI client, embeddings
+│   ├── openai.ts              # OpenAI client (traced), embeddings
+│   ├── tracing.ts             # LangSmith settings on Prisma, sending the last traces
 │   ├── config.ts              # settings: Prisma (service.ts) vs local (.env)
 │   ├── env.ts                 # loads .env
 │   └── evals/                 # npm run evals: chat.test.ts (cases + LLM judge), server.ts (starts the API)
@@ -461,6 +482,11 @@ OPENAI_BASE_URL=https://api.openai.com/v1     # optional; set it only to use a p
 DATABASE_URL="postgres://USER:PASSWORD@HOST:5432/postgres?sslmode=verify-full"
 RETELL_API_KEY=not-used                       # your Retell key if you set up the phone agent (step 6)
 TYPESAFE_API_KEY=...                          # optional; only for the evals (npm run evals, section 16)
+LANGSMITH_TRACING=true                        # optional; LangSmith tracing (section 6)
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com
+LANGSMITH_API_KEY=lsv2_...
+LANGSMITH_AGENT_ID=service-assistant
+LANGSMITH_AGENT_ENVIRONMENT=local
 ```
 
 > `RETELL_API_KEY` is **required on Prisma even without the phone agent**: the pinned Prisma version fails a deploy when a secret is missing. If you don't use the phone agent, any value works (e.g. `not-used`): `/api/voice/ask` then rejects every request with `401`, and the rest of the app is unaffected. Locally it can be left out.
@@ -626,12 +652,19 @@ for ROLE in production preview; do
   npx prisma project env add APP_USERS       --role $ROLE --project capstone-project
   npx prisma project env add SESSION_SECRET  --role $ROLE --project capstone-project
   npx prisma project env add RETELL_API_KEY  --role $ROLE --project capstone-project
+  npx prisma project env add LANGSMITH_API_KEY  --role $ROLE --project capstone-project
+  npx prisma project env add LANGSMITH_TRACING  --role $ROLE --project capstone-project
+  npx prisma project env add LANGSMITH_ENDPOINT --role $ROLE --project capstone-project
+  npx prisma project env add LANGSMITH_AGENT_ID --role $ROLE --project capstone-project
 done
+# Not from .env (that one says local): production and previews get their own traces
+npx prisma project env add LANGSMITH_AGENT_ENVIRONMENT=production --role production --project capstone-project
+npx prisma project env add LANGSMITH_AGENT_ENVIRONMENT=staging    --role preview    --project capstone-project
 ```
 
 Check with `npx prisma project env list --role production --project capstone-project` (names only, never values).
 
-All but `OPENAI_BASE_URL` are required, `RETELL_API_KEY` included even if you don't use the phone agent: the deploy fails when one is missing. Without a phone agent, set it to any placeholder such as `not-used` (see [Environment variables](#2-environment-variables)).
+All but `OPENAI_BASE_URL` and the `LANGSMITH_*` settings are required, `RETELL_API_KEY` included even if you don't use the phone agent: the deploy fails when one is missing. Without a phone agent, set it to any placeholder such as `not-used` (see [Environment variables](#2-environment-variables)). `LANGSMITH_API_KEY` is a secret, and the pinned Prisma version may also fail a deploy without it; if you don't use LangSmith, set it to `not-used` and leave `LANGSMITH_TRACING` out.
 
 ### Deploying
 
@@ -764,6 +797,11 @@ rm cookies.txt
 | `TYPESAFE_API_KEY` | evals only | `.env` | The TypeSafe judge that scores the evals' answers (`npm run evals`) |
 | `EVALS_PORT` | no | shell or `.env` | Port of the server the evals start (default 3100) |
 | `PYTHON` | no | shell or `.env` | The Python that `manuals:check` / `manuals:update` run `fetch_manuals.py` with (default `python3`; it needs `requests` and `certifi`) |
+| `LANGSMITH_TRACING` | no | `.env`, Prisma | `true` sends a trace of every question to LangSmith (section 6); anything else, or unset, sends nothing |
+| `LANGSMITH_API_KEY` | with tracing | `.env`, Prisma (secret) | LangSmith API key (`lsv2_…`) |
+| `LANGSMITH_ENDPOINT` | no | `.env`, Prisma | LangSmith API URL (default `https://api.smith.langchain.com`; EU workspaces use their own) |
+| `LANGSMITH_AGENT_ID` | with tracing | `.env`, Prisma | The LangSmith agent the traces go to (`service-assistant`) |
+| `LANGSMITH_AGENT_ENVIRONMENT` | with tracing | `.env`, Prisma | `local`, `development`, `staging` or `production`; any other value makes LangSmith reject the traces |
 
 ### Tuning constants
 
@@ -895,6 +933,7 @@ The agent's answers vary a little from run to run, so a case can fail now and th
 | Deploy fails early naming a variable | That setting isn't defined on Prisma for the branch's role (production/preview). Add it with `prisma project env add`. |
 | Deploy "succeeds" but skipped | The repository isn't connected to the Prisma project (Prisma Console → Git). |
 | `502` right after a deploy | The server crashed on start; read `npx prisma service logs api`. |
+| No traces in LangSmith | `LANGSMITH_TRACING` isn't exactly `true`, or `LANGSMITH_API_KEY` is wrong (the server logs a LangSmith error). `LANGSMITH_AGENT_ENVIRONMENT` must be `local`, `development`, `staging` or `production`: `prod` makes LangSmith reject them. On Prisma, settings changes take effect at the next deploy. |
 | First answer after a deploy takes 10–15 s | Cold start; later requests take 2–5 s. |
 | `contract emit` fails with codec errors | Mismatched Prisma package versions; reinstall the pinned set (see Setup). |
 | `prisma migration plan` asks for an origin | Pass `--from <last migration directory name>`. |

@@ -1,4 +1,4 @@
-// Where the server gets its database, OpenAI, login and Retell settings:
+// Where the server gets its database, OpenAI, login, Retell and LangSmith settings:
 //
 // - On Prisma: from the service declaration (service.ts). The database comes
 //   from service.load() and the other settings from service.input(),
@@ -16,6 +16,7 @@ import service from "../service.ts";
 import type { db as localDb } from "../src/prisma/db.ts";
 import { parseAccounts } from "./auth.ts";
 import { configureOpenAI } from "./openai.ts";
+import { configureTracing } from "./tracing.ts";
 
 export type Db = typeof localDb;
 
@@ -42,6 +43,13 @@ export async function appConfig(): Promise<AppConfig> {
     const { database } = service.load();
     const input = service.input();
     configureOpenAI({ apiKey: input.openaiApiKey.expose(), baseURL: input.openaiBaseUrl || undefined });
+    configureTracing({
+      tracing: input.langsmithTracing,
+      apiKey: input.langsmithApiKey?.expose(),
+      endpoint: input.langsmithEndpoint,
+      agentId: input.langsmithAgentId,
+      agentEnvironment: input.langsmithAgentEnvironment,
+    });
     config = {
       runningOn: "prisma",
       db: database.clientWith({ extensions: [pgvector] }),

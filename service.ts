@@ -26,6 +26,12 @@ export default compute({
     sessionSecret: secretString(),
     // Checks that /api/voice/ask requests come from Retell (the key with the webhook badge)
     retellApiKey: secretString(),
+    // LangSmith tracing (lib/tracing.ts). Optional: without them nothing is traced
+    "langsmithTracing?": "string",
+    "langsmithApiKey?": secretString(),
+    "langsmithEndpoint?": "string",
+    "langsmithAgentId?": "string",
+    "langsmithAgentEnvironment?": "string",
   }),
   build: node({
     module: import.meta.url,

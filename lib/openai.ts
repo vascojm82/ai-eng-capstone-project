@@ -1,5 +1,6 @@
 import "./env.ts";
 import OpenAI from "openai";
+import { wrapOpenAI } from 'langsmith/wrappers/openai';
 
 // One client for every OpenAI call. Locally the settings come from .env
 // (OPENAI_API_KEY, and OPENAI_BASE_URL for a proxy); on Prisma the server
@@ -21,7 +22,10 @@ export function openai(): OpenAI {
     apiKey: process.env.OPENAI_API_KEY,
     baseURL: process.env.OPENAI_BASE_URL || undefined,
   };
-  client ??= new OpenAI({ apiKey, baseURL });
+  
+  // wrapOpenAI auto-logs every call to LangSmith when LANGSMITH_TRACING=true.
+  // No per-call wrapper needed — just wrap the client once.
+  client ??= wrapOpenAI(new OpenAI({ apiKey, baseURL }));
   return client;
 }
 

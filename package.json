@@ -36,6 +36,7 @@
     "arktype": "2.2.9",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",
+    "langsmith": "^0.11.8",
     "openai": "^7.43.0",
     "retell-sdk": "6.2.7"
   },

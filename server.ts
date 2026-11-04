@@ -3,6 +3,7 @@ import express, { type ErrorRequestHandler } from "express";
 import { existsSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
+import { flushTraces } from "./lib/tracing.ts";
 import authRouter from "./routes/auth.ts";
 import assistantRouter from "./routes/assistant.ts";
 import voiceRouter from "./routes/voice.ts";
@@ -41,6 +42,17 @@ const jsonErrorHandler: ErrorRequestHandler = (err, req, res, next) => {
 
 app.use(jsonErrorHandler);
 
-app.listen(PORT, "0.0.0.0", () => {
+const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server listening on http://localhost:${PORT}`);
+});
+
+// On a redeploy (or when the evals stop their server): finish the requests in
+// flight and send the LangSmith traces still queued, then exit
+process.once("SIGTERM", () => {
+  setTimeout(() => process.exit(0), 10_000).unref(); // don't wait forever on a hung request
+  server.close(() => {
+    flushTraces()
+      .catch((err) => console.error("Sending the last LangSmith traces failed:", err))
+      .finally(() => process.exit(0));
+  });
 });
