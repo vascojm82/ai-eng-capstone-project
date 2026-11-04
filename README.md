@@ -341,13 +341,14 @@ With tracing on, every question (web chat or phone) is one trace in [LangSmith](
 
 ```
 Service Assistant [chain]   inputs: conversation, channel (web | phone)
+├── known_vehicle [chain]   the model and year found in the conversation, and the note the model gets
 ├── ChatOpenAI [llm]        the model decides to search
 ├── search_manuals [tool]   query, k → the passages the model saw
 └── ChatOpenAI [llm]        the answer, with tokens and cost
 ```
 
 - [`lib/openai.ts`](lib/openai.ts) wraps the OpenAI client with `wrapOpenAI()`, so model calls are recorded.
-- [`agents/manual-assistant.ts`](agents/manual-assistant.ts) wraps `runAgent()` and each tool call with `traceable()`, so they're grouped into one trace. The database client isn't recorded.
+- [`agents/manual-assistant.ts`](agents/manual-assistant.ts) wraps `runAgent()`, the vehicle detection and each tool call with `traceable()`, so they're grouped into one trace. The database client isn't recorded. `find_manuals` appears only when the model calls it, e.g. "Which models do you have?"; when the vehicle is already known it searches directly.
 - [`lib/tracing.ts`](lib/tracing.ts) passes the settings to the SDK on Prisma, and the server sends the queued traces before it stops (`SIGTERM`).
 - Each environment has its own traces: `LANGSMITH_AGENT_ENVIRONMENT` is `local` in `.env`, `production` on Prisma's production and `staging` on previews.
 - `manuals:upload` is never traced (its hundreds of embedding requests would bury the real questions). The evals' questions are traced, as `local`.

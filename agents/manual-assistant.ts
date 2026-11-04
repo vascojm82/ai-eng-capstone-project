@@ -313,7 +313,7 @@ function borrowedYear(query: string, vehicle: KnownVehicle): number | undefined 
  * to that other car: after "…my 2026 Integra?" and then "…my MDX?", the MDX's
  * year is unknown, not 2026.
  */
-async function knownVehicle(db: Db, conversation: ChatMessage[]): Promise<KnownVehicle> {
+async function findKnownVehicle(db: Db, conversation: ChatMessage[]): Promise<KnownVehicle> {
   const { available } = await findManuals(db, {});
   const catalog = { models: Object.keys(available), years: [...new Set(Object.values(available).flat())] };
   let model: string | undefined;
@@ -343,6 +343,14 @@ async function knownVehicle(db: Db, conversation: ChatMessage[]): Promise<KnownV
   if (year !== undefined) return { catalog, year, note: `The user has named the model year (${year}) but not the model yet.` };
   return { catalog, note: null };
 }
+
+/** findKnownVehicle() as a step of the trace: the vehicle found and the note the model gets, not the catalog */
+const knownVehicle = traceable(findKnownVehicle, {
+  name: "known_vehicle",
+  run_type: "chain",
+  processInputs: ({ args: [, conversation] }) => ({ conversation }),
+  processOutputs: ({ model, year, note }) => ({ model, year, note }),
+});
 
 /** `voice`: the reply will be read aloud on a phone call (short, plain sentences, no citations) */
 async function answer(
