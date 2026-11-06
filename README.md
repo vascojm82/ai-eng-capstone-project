@@ -428,13 +428,15 @@ A single-page React app in [`web/`](web), built by Vite into `dist/public` and s
 │   ├── auth.ts                # /api/login, /api/logout, /api/me
 │   ├── assistant.ts           # /api/chat, /api/search (login + limits)
 │   ├── voice.ts               # /api/voice/ask (Retell phone agent, signed requests)
-│   └── mcp.ts                 # /api/mcp (MCP server for external agents, API keys)
+│   └── mcp.ts                 # /api/mcp: HTTP endpoint of the MCP server (API key check, transport)
+├── mcp-server/
+│   ├── keys.ts                # MCP API keys: create, hash, look up (cached)
+│   └── server.ts              # the MCP server: find_manuals and search_manuals for external agents, per-call limits and tracing
 ├── agents/
 │   └── manual-assistant.ts    # the agent: prompt, scope rules, tool loop
 ├── lib/
 │   ├── tools.ts               # find_manuals and search_manuals, shared by the agent and the MCP server
 │   ├── search.ts              # vehicle → manuals (SQL) → pgvector search
-│   ├── mcp-keys.ts            # MCP API keys: create, hash, look up (cached)
 │   ├── validation.ts          # parseBody(): request bodies checked with Zod
 │   ├── vehicles.ts            # year/model detection in text
 │   ├── auth.ts                # password hashing, signed session cookie, requireAuth
@@ -812,7 +814,7 @@ The tool endpoint for the Retell phone agent: Retell's LLM calls it (custom tool
 
 ### `POST /api/mcp` (external agents)
 
-An [MCP](https://modelcontextprotocol.io) server ([`routes/mcp.ts`](routes/mcp.ts)) that gives other agents the assistant's two tools. They run the same code as the web and phone assistant ([`lib/tools.ts`](lib/tools.ts)), so the arguments, limits and output are the same:
+An [MCP](https://modelcontextprotocol.io) server ([`mcp-server/server.ts`](mcp-server/server.ts), served over HTTP by [`routes/mcp.ts`](routes/mcp.ts)) that gives other agents the assistant's two tools. They run the same code as the web and phone assistant ([`lib/tools.ts`](lib/tools.ts)), so the arguments, limits and output are the same:
 
 | Tool | Arguments | Returns |
 |---|---|---|

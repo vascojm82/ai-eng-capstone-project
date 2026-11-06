@@ -1,5 +1,5 @@
 // The two manual tools, shared by the assistant (agents/manual-assistant.ts)
-// and the MCP server for external agents (routes/mcp.ts), so both get the same
+// and the MCP server for external agents (mcp-server/server.ts), so both get the same
 // arguments, limits and output:
 //   - find_manuals:   which vehicles and manuals we have
 //   - search_manuals: the passages of one vehicle's manuals closest to a question

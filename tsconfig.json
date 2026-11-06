@@ -13,5 +13,5 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["server.ts", "agents/**/*.ts", "routes/**/*.ts", "scripts/**/*.ts", "lib/**/*.ts", "src/**/*.ts", "service.ts", "module.ts", "prisma.config.ts", "vitest.config.ts"]
+  "include": ["server.ts", "agents/**/*.ts", "routes/**/*.ts", "mcp-server/**/*.ts", "scripts/**/*.ts", "lib/**/*.ts", "src/**/*.ts", "service.ts", "module.ts", "prisma.config.ts", "vitest.config.ts"]
 }

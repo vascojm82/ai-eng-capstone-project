@@ -68,9 +68,9 @@ model Chunk {
   @@map("chunks")
 }
 
-// One API key for the MCP tools (routes/mcp.ts), owned by one external agent
+// One API key for the MCP tools (mcp-server/server.ts), owned by one external agent
 // (`name`). Only the key's SHA-256 is stored, never the key: `npm run mcp:keys`
-// creates a key, shows it once, and lists and revokes keys (lib/mcp-keys.ts).
+// creates a key, shows it once, and lists and revokes keys (mcp-server/keys.ts).
 model McpKey {
   id          Int                @id @default(autoincrement()) @map("key_id")
   // Who the key is for, e.g. "Acme dealer bot"

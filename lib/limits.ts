@@ -67,7 +67,7 @@ let questionsToday = 0;
 export type LimitResult = { ok: true } | { ok: false; error: string; retryAfterSeconds: number };
 
 /** Counts one question against `window` for `key` and against the app's daily limit */
-function take(window: SlidingWindow, key: string, overLimitError: string, now: Date): LimitResult {
+function takeWithDailyLimit(window: SlidingWindow, key: string, overLimitError: string, now: Date): LimitResult {
   const today = now.toISOString().slice(0, 10);
   if (today !== day) {
     day = today;
@@ -91,13 +91,13 @@ function take(window: SlidingWindow, key: string, overLimitError: string, now: D
 /** Counts one question for this user; refuses it when the user or the whole app is over the limit */
 export function takeQuestion(username: string, now = new Date()): LimitResult {
   const error = `You've reached the limit of ${QUESTIONS_PER_USER_PER_HOUR} questions per hour. Please try again later.`;
-  return take(perUser, username, error, now);
+  return takeWithDailyLimit(perUser, username, error, now);
 }
 
 /** Counts one phone question for this caller (their phone number); refuses it when the caller or the whole app is over the limit */
 export function takeVoiceQuestion(caller: string, now = new Date()): LimitResult {
   const error = `You've reached the limit of ${QUESTIONS_PER_CALLER_PER_HOUR} questions per hour. Please call again later.`;
-  return take(perCaller, caller, error, now);
+  return takeWithDailyLimit(perCaller, caller, error, now);
 }
 
 /** Counts one MCP tool call for this client; refuses it when the client or all MCP clients together are over their limit */

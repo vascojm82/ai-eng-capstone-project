@@ -1,5 +1,5 @@
 /**
- * API keys for the external agents that call the MCP server (routes/mcp.ts).
+ * API keys for the external agents that call the MCP server (mcp-server/server.ts, at /api/mcp).
  * Works on the database in DATABASE_URL, so locally it manages the same
  * clients the deployed app checks.
  *
@@ -13,7 +13,7 @@
  * one and revoke the old. A revoked key stops working within a minute.
  */
 
-import { newKey } from "../../lib/mcp-keys.ts";
+import { newKey } from "../../mcp-server/keys.ts";
 import { MCP_CALLS_PER_CLIENT_PER_HOUR } from "../../lib/limits.ts";
 import { db } from "../../src/prisma/db.ts";
 

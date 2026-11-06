@@ -1,4 +1,4 @@
-// API keys of the external agents allowed to call the MCP tools (routes/mcp.ts),
+// API keys of the external agents allowed to call the MCP tools (server.ts),
 // kept in the mcp_keys table. This file doesn't manage the table: it makes
 // keys and checks them. Who does what:
 //
@@ -20,7 +20,7 @@
 // key's prefix, to tell keys apart in lists and logs.
 
 import { createHash, randomBytes } from "crypto";
-import type { Db } from "./config.ts";
+import type { Db } from "../lib/config.ts";
 
 const KEY_PREFIX = "sam_";
 const PREFIX_LENGTH = 12; // "sam_" + 8 random characters
