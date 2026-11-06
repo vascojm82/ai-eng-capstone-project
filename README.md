@@ -97,7 +97,7 @@ flowchart LR
 | Layer | Technology |
 |---|---|
 | Frontend | React 19, Material UI 9, Vite 8, `react-markdown` |
-| Backend | Node.js 22 (Bun on Prisma), Express 5, TypeScript |
+| Backend | Node.js 22 (Bun on Prisma), Express 5, TypeScript, Zod 4 (request bodies, Retell's requests, the session cookie, and the agent's tool schemas via `zodFunction`) |
 | Database | PostgreSQL 15+ with pgvector, Prisma ORM 8 (contract + migrations) |
 | AI | OpenAI `gpt-6-luna` (agent), `text-embedding-3-small` (1,536-dimension embeddings) |
 | PDF processing | MuPDF.js (layout-aware text extraction) |

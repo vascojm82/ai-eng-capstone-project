@@ -10,9 +10,14 @@
 
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import type { NextFunction, Request, Response } from "express";
+import { z } from "zod";
 
-export type Role = "user" | "admin";
+const Role = z.enum(["user", "admin"]);
+export type Role = z.infer<typeof Role>;
 export type SessionUser = { username: string; role: Role };
+
+/** What the session cookie carries (signed, but checked again after a change of format) */
+const SessionPayload = z.object({ username: z.string().min(1), role: Role, exp: z.number() });
 type Account = SessionUser & { passwordHash: string };
 
 export const SESSION_COOKIE = "session";
@@ -47,8 +52,8 @@ export function parseAccounts(appUsers: string | undefined): Account[] {
   return (appUsers ?? "")
     .split(",")
     .map((entry) => entry.trim().split(":"))
-    .filter(([username, role, passwordHash]) => username && (role === "user" || role === "admin") && passwordHash)
-    .map(([username, role, passwordHash]) => ({ username, role: role as Role, passwordHash }));
+    .filter(([username, role, passwordHash]) => username && Role.safeParse(role).success && passwordHash)
+    .map(([username, role, passwordHash]) => ({ username, role: Role.parse(role), passwordHash }));
 }
 
 // A fixed hash, checked when the username doesn't exist, so a wrong username
@@ -82,13 +87,15 @@ export function readSession(value: string | undefined, secret: string): SessionU
   const expected = Buffer.from(sign(payload, secret));
   const actual = Buffer.from(signature);
   if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
+  let json: unknown;
   try {
-    const { username, role, exp } = JSON.parse(Buffer.from(payload, "base64url").toString());
-    if (typeof exp !== "number" || exp < Date.now()) return null;
-    return { username, role };
+    json = JSON.parse(Buffer.from(payload, "base64url").toString());
   } catch {
     return null;
   }
+  const session = SessionPayload.safeParse(json);
+  if (!session.success || session.data.exp < Date.now()) return null;
+  return { username: session.data.username, role: session.data.role };
 }
 
 /** The value of one cookie from the request's Cookie header */

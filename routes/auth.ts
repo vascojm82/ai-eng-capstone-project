@@ -2,16 +2,18 @@ import { Router } from "express";
 import { checkLogin, cookieOptions, createSession, getCookie, readSession, SESSION_COOKIE } from "../lib/auth.ts";
 import { appConfig } from "../lib/config.ts";
 import { takeLoginAttempt } from "../lib/limits.ts";
+import { parseBody } from "../lib/validation.ts";
+import { z } from "zod";
 
 const router = Router();
 
+const LoginBody = z.object({ username: z.string().min(1), password: z.string().min(1) });
+
 // POST /api/login { "username": "user", "password": "…" } → sets the session cookie
 router.post("/login", async (req, res) => {
-  const { username, password } = req.body ?? {};
-  if (typeof username !== "string" || typeof password !== "string" || !username || !password) {
-    res.status(400).json({ error: "`username` and `password` are required" });
-    return;
-  }
+  const body = parseBody(LoginBody, req, res, "`username` and `password` are required");
+  if (!body) return;
+  const { username, password } = body;
 
   const limit = takeLoginAttempt(req.ip ?? "unknown");
   if (!limit.ok) {
