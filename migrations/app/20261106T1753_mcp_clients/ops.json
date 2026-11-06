@@ -1,0 +1,131 @@
+[
+  {
+    "id": "table.mcp_clients",
+    "label": "Create table \"mcp_clients\"",
+    "summary": "Creates table \"mcp_clients\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "mcp_clients"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"mcp_clients\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"mcp_clients\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"mcp_clients\"",
+        "sql": "CREATE TABLE \"public\".\"mcp_clients\" (\n  \"client_id\" SERIAL NOT NULL,\n  \"created_at\" timestamptz NOT NULL,\n  \"hourly_limit\" int4,\n  \"key_hash\" text NOT NULL,\n  \"key_prefix\" text NOT NULL,\n  \"last_used_at\" timestamptz,\n  \"name\" text NOT NULL,\n  \"revoked_at\" timestamptz,\n  PRIMARY KEY (\"client_id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"mcp_clients\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_class\" AS \"c\" WHERE (\"c\".\"oid\" = to_regclass($1) AND (\"c\".\"relkind\" = $2 OR \"c\".\"relkind\" = $3))) AS \"result\"",
+        "params": [
+          "\"public\".\"mcp_clients\"",
+          "r",
+          "p"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.mcp_clients.mcp_clients_key_prefix_key",
+    "label": "Add unique constraint on \"mcp_clients\" (key_prefix)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "mcp_clients_key_prefix_key",
+        "table": "mcp_clients"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"mcp_clients_key_prefix_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "mcp_clients_key_prefix_key",
+          "public",
+          "\"public\".\"mcp_clients\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"mcp_clients_key_prefix_key\"",
+        "sql": "ALTER TABLE \"public\".\"mcp_clients\" ADD CONSTRAINT \"mcp_clients_key_prefix_key\" UNIQUE (\"key_prefix\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"mcp_clients_key_prefix_key\" exists on (key_prefix)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "mcp_clients_key_prefix_key",
+          "public",
+          "\"public\".\"mcp_clients\"",
+          "u",
+          "[\"key_prefix\"]"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.mcp_clients.mcp_clients_key_hash_key",
+    "label": "Add unique constraint on \"mcp_clients\" (key_hash)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "mcp_clients_key_hash_key",
+        "table": "mcp_clients"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"mcp_clients_key_hash_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "mcp_clients_key_hash_key",
+          "public",
+          "\"public\".\"mcp_clients\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"mcp_clients_key_hash_key\"",
+        "sql": "ALTER TABLE \"public\".\"mcp_clients\" ADD CONSTRAINT \"mcp_clients_key_hash_key\" UNIQUE (\"key_hash\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify unique constraint \"mcp_clients_key_hash_key\" exists on (key_hash)",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3) AND \"c\".\"contype\" = $4 AND (SELECT coalesce(jsonb_agg(key_attribute.attname ORDER BY key_column.position), '[]'::jsonb) FROM unnest(\"c\".\"conkey\"::int2[]) WITH ORDINALITY AS key_column(attnum, position) JOIN pg_attribute key_attribute ON key_attribute.attrelid = \"c\".\"conrelid\" AND key_attribute.attnum = key_column.attnum) = ($5)::jsonb)) AS \"result\"",
+        "params": [
+          "mcp_clients_key_hash_key",
+          "public",
+          "\"public\".\"mcp_clients\"",
+          "u",
+          "[\"key_hash\"]"
+        ]
+      }
+    ]
+  }
+]

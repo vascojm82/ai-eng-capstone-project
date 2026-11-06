@@ -24,7 +24,16 @@ import { zodFunction } from "openai/helpers/zod";
 import { z } from "zod";
 import type { Db } from "../lib/config.ts";
 import { openai } from "../lib/openai.ts";
-import { findManuals, searchManuals, type SearchResult } from "../lib/search.ts";
+import { findManuals, type SearchResult } from "../lib/search.ts";
+import {
+  FIND_MANUALS_DESCRIPTION,
+  FindManualsArgs,
+  runFindManuals,
+  runSearchManuals,
+  SEARCH_MANUALS_DESCRIPTION,
+  SearchManualsArgs,
+  type ToolResult,
+} from "../lib/tools.ts";
 import { detectVehicle, type Catalog } from "../lib/vehicles.ts";
 
 // GPT-6 Luna, the small GPT-6 model, unless OPENAI_CHAT_MODEL picks another one.
@@ -35,7 +44,6 @@ export const CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || "gpt-6-luna";
 const isGpt6 = CHAT_MODEL.startsWith("gpt-6");
 const MAX_TOOL_ROUNDS = 5; // model ↔ tools round trips per message, so a confused model can't loop forever
 const HISTORY_MESSAGES = 5; // the latest user/assistant messages the model sees, the current question included
-const DEFAULT_K = 5;
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -164,81 +172,39 @@ function forSpeech(reply: string): string {
     .trim();
 }
 
-// The tools' arguments. zodFunction() turns each schema into the tool's strict JSON
-// Schema (every field required, null for "not given"), and runTool() checks the
-// arguments the model sends against the same schema.
-const FindManualsArgs = z.object({
-  year: z.int().nullable().describe("Model year, e.g. 2026, or null for every year"),
-  model: z.string().nullable().describe("Model name, e.g. MDX, or null for every model"),
-});
-
-const SearchManualsArgs = z.object({
-  query: z.string().describe('The question, naming the vehicle, e.g. "How do I pair my phone on a 2024 ZDX?"'),
-  k: z.int().min(1).max(10).nullable().describe(`How many passages to return, or null for the default (${DEFAULT_K})`),
-});
-
+// The tools (lib/tools.ts, shared with the MCP server). zodFunction() turns each
+// argument schema into the tool's strict JSON Schema (every field required, null
+// for "not given"), and runTool() checks the arguments the model sends against it.
 const TOOLS = [
-  zodFunction({
-    name: "find_manuals",
-    description:
-      "List the vehicles we have manuals for (each model with its years). Given a model (and optionally a year), also list the manuals covering it.",
-    parameters: FindManualsArgs,
-  }),
-  zodFunction({
-    name: "search_manuals",
-    description:
-      "Search the manuals of one vehicle for the passages that best answer a question. The query must name the model year and model.",
-    parameters: SearchManualsArgs,
-  }),
+  zodFunction({ name: "find_manuals", description: FIND_MANUALS_DESCRIPTION, parameters: FindManualsArgs }),
+  zodFunction({ name: "search_manuals", description: SEARCH_MANUALS_DESCRIPTION, parameters: SearchManualsArgs }),
 ];
 
 /** What the model gets back when its arguments don't match the tool's schema */
-function invalidArgs(name: string, error: z.ZodError) {
+function invalidArgs(name: string, error: z.ZodError): ToolResult {
   return { output: { status: "error", message: `Invalid arguments for ${name}: ${z.prettifyError(error)}` }, status: "error" };
 }
 
 /** Run one tool call; returns what the model sees, plus what the reply's sources are built from */
-async function runTool(
-  db: Db,
-  name: string,
-  args: Record<string, unknown>,
-  vehicle: KnownVehicle,
-): Promise<{ output: unknown; status?: string; results?: SearchResult[] }> {
+async function runTool(db: Db, name: string, args: Record<string, unknown>, vehicle: KnownVehicle): Promise<ToolResult> {
   if (name === "find_manuals") {
     const parsed = FindManualsArgs.safeParse(args);
     if (!parsed.success) return invalidArgs(name, parsed.error);
-    const { year, model } = parsed.data;
-    return { output: await findManuals(db, { year: year ?? undefined, model: model ?? undefined }) };
+    return runFindManuals(db, parsed.data);
   }
   if (name === "search_manuals") {
     const parsed = SearchManualsArgs.safeParse(args);
     if (!parsed.success) return invalidArgs(name, parsed.error);
-    const { query } = parsed.data;
     // The model sometimes ignores the note that the year is unknown and searches with
     // the year of another car from earlier in the conversation; make it ask instead
-    const borrowed = borrowedYear(query, vehicle);
+    const borrowed = borrowedYear(parsed.data.query, vehicle);
     if (borrowed !== undefined) {
       const message =
         `The user hasn't said which model year their ${vehicle.model} is; ${borrowed} wasn't given for it. ` +
         `Don't search yet: ask the user for the year of their ${vehicle.model} in one short question.`;
       return { output: { status: "needs_vehicle", missing: ["year"], message }, status: "needs_vehicle" };
     }
-    // At least DEFAULT_K passages: the right page is sometimes 3rd to 5th, and a few extra passages cost little
-    const k = Math.max(parsed.data.k ?? DEFAULT_K, DEFAULT_K);
-    const outcome = await searchManuals(db, query, k);
-    if (outcome.status !== "ok") return { output: outcome, status: outcome.status };
-    // The model only needs the text and where it comes from
-    const passages = outcome.results.map((r) => ({
-      manual: r.manual.title,
-      page: r.page,
-      section: r.section,
-      content: r.content,
-    }));
-    return {
-      output: { status: "ok", vehicle: outcome.vehicle, note: outcome.note, passages },
-      status: "ok",
-      results: outcome.results,
-    };
+    return runSearchManuals(db, parsed.data);
   }
   return { output: { error: `Unknown tool ${name}` }, status: "error" };
 }

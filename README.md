@@ -51,6 +51,7 @@ It's a retrieval-augmented generation (RAG) app with one agent, a SQL database a
 | **Conversation memory** | Follow-ups work ("And how much oil does the 3.0 L take?"); the car named earlier in the chat is remembered. |
 | **Login and limits** | Two accounts (`user`, `admin`); 20 questions per user per hour and 300 per day for the whole app, to cap OpenAI costs. |
 | **Phone answers (Retell)** | `POST /api/voice/ask` answers questions for a Retell phone agent: same search and rules, short spoken answers, signed requests only, 20 questions per caller per hour. |
+| **MCP server for other agents** | `POST /api/mcp` gives external agents (Claude, any MCP client) the assistant's two read-only tools, `find_manuals` and `search_manuals`, with a per-client API key and limits. |
 | **Coverage** | 37 manuals (23 owner's, 14 navigation) for 135 US trims, model years 2022–2026: ADX, ILX, Integra, MDX, NSX, RDX, TLX, ZDX. |
 
 ---
@@ -284,9 +285,19 @@ erDiagram
         text content
         vector_1536 embedding
     }
+    mcp_keys {
+        serial key_id PK
+        text name "Acme dealer bot"
+        text key_prefix UK "sam_8f3kQ2xa"
+        text key_hash UK "SHA-256"
+        int hourly_limit
+        timestamptz last_used_at
+        timestamptz revoked_at
+    }
 ```
 
 - Many trims share one PDF, so **manuals** has one row per PDF and **vehicle_manuals** links trims to manuals (many-to-many).
+- **mcp_keys** holds the API keys of the external agents allowed to use the MCP server, as hashes only (see [`POST /api/mcp`](#post-apimcp-external-agents)). It isn't linked to the other tables.
 - **chunks.embedding** is a `vector(1536)` column (pgvector). Searches filter by `manual_id` first, then order by cosine distance.
 - The schema lives in [`src/prisma/contract.prisma`](src/prisma/contract.prisma); migrations are in [`migrations/`](migrations) and are applied automatically on deploy. The full column list is in [`scripts/db/schema.md`](scripts/db/schema.md).
 
@@ -385,6 +396,9 @@ sequenceDiagram
 | Questions per phone caller (`/api/voice/ask`) | 20 per rolling hour, by caller number |
 | Questions for the whole app | 300 per day (UTC), web and phone together |
 | Login attempts per IP | 10 per 15 minutes |
+| MCP tool calls per client (`/api/mcp`) | 60 per rolling hour, or the client's own `hourly_limit`; answered as a tool error, not `429` |
+| MCP tool calls for all clients | 1,000 per day (UTC), counted apart from the 300 web and phone questions |
+| Wrong MCP keys per IP | 10 per 15 minutes |
 
 The counters live in the server's memory: they reset on restart and aren't shared between instances. As a last line of defense, also set a monthly budget on your OpenAI account.
 
@@ -413,11 +427,15 @@ A single-page React app in [`web/`](web), built by Vite into `dist/public` and s
 ├── routes/
 │   ├── auth.ts                # /api/login, /api/logout, /api/me
 │   ├── assistant.ts           # /api/chat, /api/search (login + limits)
-│   └── voice.ts               # /api/voice/ask (Retell phone agent, signed requests)
+│   ├── voice.ts               # /api/voice/ask (Retell phone agent, signed requests)
+│   └── mcp.ts                 # /api/mcp (MCP server for external agents, API keys)
 ├── agents/
-│   └── manual-assistant.ts    # the agent: prompt, scope rules, tools, loop
+│   └── manual-assistant.ts    # the agent: prompt, scope rules, tool loop
 ├── lib/
+│   ├── tools.ts               # find_manuals and search_manuals, shared by the agent and the MCP server
 │   ├── search.ts              # vehicle → manuals (SQL) → pgvector search
+│   ├── mcp-keys.ts            # MCP API keys: create, hash, look up (cached)
+│   ├── validation.ts          # parseBody(): request bodies checked with Zod
 │   ├── vehicles.ts            # year/model detection in text
 │   ├── auth.ts                # password hashing, signed session cookie, requireAuth
 │   ├── limits.ts              # usage limits
@@ -434,7 +452,8 @@ A single-page React app in [`web/`](web), built by Vite into `dist/public` and s
 │   ├── db/seed.ts             # npm run db:seed
 │   ├── db/schema.md           # schema diagram and column list
 │   ├── manuals/               # chunk.ts, extract.ts, upload.ts, update.ts (check/update), manifest.ts + CHUNKING.md, UPLOADING.md
-│   └── auth/create-users.ts   # npm run auth:users
+│   ├── auth/create-users.ts   # npm run auth:users
+│   └── mcp/keys.ts            # npm run mcp:keys
 ├── src/prisma/                # contract.prisma (schema), generated contract, db.ts
 ├── migrations/                # Prisma migrations (applied on deploy)
 ├── data/acura_manuals/        # fetch_manuals.py, manifests (PDFs gitignored)
@@ -557,6 +576,32 @@ Lets people call a phone number and ask the assistant by voice. [Retell](https:/
    ```
    It's safe to re-run: it finds the agent by name and updates it. Changes to the agent's prompt, greeting, voice or speed are made in [`scripts/voice/setup-retell.ts`](scripts/voice/setup-retell.ts) and take effect when you run it again.
 6. **Call the number** and try the [phone scenarios](#phone-scenarios). Then turn the line off until you need it: see [Running the demo line](#running-the-demo-line).
+
+### 7. MCP keys for external agents (optional)
+
+Only needed to let other agents use the manual tools through [`POST /api/mcp`](#post-apimcp-external-agents). Each client gets its own API key:
+
+```sh
+npm run mcp:keys -- create "Acme dealer bot"              # prints the key once; send it privately
+npm run mcp:keys -- create "Acme dealer bot" --limit 120  # with its own tool calls per hour (default 60)
+npm run mcp:keys -- list                                  # prefix, name, limit, last used, status
+npm run mcp:keys -- revoke sam_8f3kQ2xa                    # by the prefix `list` shows
+```
+
+`list` shows, for example:
+
+```
+┌─────────┬────────────────┬───────────────────┬──────────────┬──────────────┬────────────────────┬──────────┐
+│ (index) │ prefix         │ name              │ calls/hour   │ created      │ last used          │ status   │
+├─────────┼────────────────┼───────────────────┼──────────────┼──────────────┼────────────────────┼──────────┤
+│ 0       │ 'sam_8f3kQ2xa' │ 'Acme dealer bot' │ 120          │ '2026-11-06' │ '2026-11-06 18:20' │ 'active' │
+└─────────┴────────────────┴───────────────────┴──────────────┴──────────────┴────────────────────┴──────────┘
+```
+
+- **Shown once:** only the key's SHA-256 hash is stored, in the `mcp_keys` table. A lost key can't be shown again: create a new one and revoke the old.
+- **No deploy needed:** the script writes to the database in `DATABASE_URL`, the same one the deployed app reads. A new key works right away; a revoked key stops working within a minute.
+- **Sending it:** send the key privately (not in a ticket or chat channel others can read). The client puts it in every request as `Authorization: Bearer <key>`; see [Connect from Claude Code](#post-apimcp-external-agents).
+- **One key per client:** never share a key between clients, so you can revoke one without affecting the others and see who used what (`last used`, and the client's name in LangSmith traces).
 
 ---
 
@@ -765,6 +810,39 @@ The tool endpoint for the Retell phone agent: Retell's LLM calls it (custom tool
 | `401` | Missing, invalid or expired signature |
 | `503` | `RETELL_API_KEY`, the database or OpenAI isn't configured |
 
+### `POST /api/mcp` (external agents)
+
+An [MCP](https://modelcontextprotocol.io) server ([`routes/mcp.ts`](routes/mcp.ts)) that gives other agents the assistant's two tools. They run the same code as the web and phone assistant ([`lib/tools.ts`](lib/tools.ts)), so the arguments, limits and output are the same:
+
+| Tool | Arguments | Returns |
+|---|---|---|
+| `find_manuals` | `year?`, `model?` | The models with their years; with a model, also its manuals |
+| `search_manuals` | `query` (naming the year and model, at most 1,000 characters), `k?` (1–10, at least 5 are returned) | The closest passages (manual, page, section, text), or `needs_vehicle` / `no_manuals` with what's missing |
+
+- **Transport:** Streamable HTTP, stateless, JSON responses. Every request is a `POST`; `GET` and `DELETE` answer `405`.
+- **Read-only:** both tools only read the manuals. The assistant itself (`runAgent`) isn't exposed. The borrowed-year check needs a conversation, so it only runs in the assistant; the search still refuses a query that doesn't name exactly one car.
+- **Keys:** every request needs `Authorization: Bearer <key>`. Each client has its own key, stored only as a SHA-256 hash in `mcp_keys`. Create, list and revoke them with `npm run mcp:keys`: see [MCP keys for external agents](#7-mcp-keys-for-external-agents-optional).
+- **Limits:** see [Login and usage limits](#7-login-and-usage-limits). Over a limit, the tool call returns an error the agent can read, with the seconds until it can retry.
+- **Errors:** agents get short messages only ("The tool failed. Please try again later."). The details go to the server log.
+- **Tracing:** with LangSmith on, each tool call is its own trace (`find_manuals` / `search_manuals`) with `channel: "mcp"`, the client's name and key prefix, never the key.
+- **The text is Honda's:** the tool descriptions tell agents the passages are reference material, not instructions. Before giving keys to anyone outside the project, check that sharing the manuals' text is allowed: the project isn't affiliated with Acura.
+
+Connect from Claude Code:
+
+```sh
+claude mcp add --transport http acura-manuals https://<your-app-host>/api/mcp --header "Authorization: Bearer sam_…"
+```
+
+Or browse the tools with the MCP Inspector, `npx @modelcontextprotocol/inspector`, with transport "Streamable HTTP", URL `http://localhost:3000/api/mcp` and the `Authorization` header.
+
+| Status | When |
+|---|---|
+| `200` | Every MCP response, tool errors included (`isError: true`), e.g. over the client's limit |
+| `401` | Missing, unknown or revoked key |
+| `405` | Not a `POST` |
+| `429` | Too many wrong keys from this IP address (10 per 15 minutes) |
+| `503` | The database or OpenAI isn't configured |
+
 ### From a terminal
 
 ```sh
@@ -840,6 +918,7 @@ rm cookies.txt
 | `npm run voice:setup` | Create or update the Retell phone agent (LLM, agent, and the `RETELL_PHONE_NUMBER` it answers); `-- --dry-run` prints the settings without changing anything. Safe to re-run |
 | `npm run voice:on` / `voice:off` | Turn the demo phone line on or off: assign or remove the agent on `RETELL_PHONE_NUMBER`, so Retell only answers (and bills) during demos. The number is kept |
 | `npm run voice:status` | Show whether the phone line is on |
+| `npm run mcp:keys` | Create (`-- create "<name>" [--limit <n>]`), list (`-- list`) or revoke (`-- revoke <prefix>`) the API keys of the external agents using `/api/mcp` |
 | `npm run contract:emit` | Regenerate `src/prisma/contract.json`/`.d.ts` after editing the schema |
 | `npm run evals` | Run the chat evals in `lib/evals`: starts the API on port 3100, asks each case, scores the replies with an LLM judge (see section 16) |
 | `npm test` | Run every test with Vitest (today, the same evals) |
@@ -934,6 +1013,9 @@ The agent's answers vary a little from run to run, so a case can fail now and th
 | Deploy fails early naming a variable | That setting isn't defined on Prisma for the branch's role (production/preview). Add it with `prisma project env add`. |
 | Deploy "succeeds" but skipped | The repository isn't connected to the Prisma project (Prisma Console → Git). |
 | `502` right after a deploy | The server crashed on start; read `npx prisma service logs api`. |
+| An agent gets `401` from `/api/mcp` | The key is wrong or revoked (`npm run mcp:keys -- list`), or the header isn't exactly `Authorization: Bearer <key>`. A new key works right away; a revoked one stops within a minute. |
+| An agent gets `429` from `/api/mcp` | Too many wrong keys from its IP address: fix the key and wait 15 minutes (or restart the server locally). |
+| `relation "mcp_keys" does not exist` | The migration isn't applied to that database: `npx prisma db migrate` (deploys apply it automatically). |
 | No traces in LangSmith | `LANGSMITH_TRACING` isn't exactly `true`, or `LANGSMITH_API_KEY` is wrong (the server logs a LangSmith error). `LANGSMITH_AGENT_ENVIRONMENT` must be `local`, `development`, `staging` or `production`: `prod` makes LangSmith reject them. On Prisma, settings changes take effect at the next deploy. |
 | First answer after a deploy takes 10–15 s | Cold start; later requests take 2–5 s. |
 | `contract emit` fails with codec errors | Mismatched Prisma package versions; reinstall the pinned set (see Setup). |

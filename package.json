@@ -23,12 +23,14 @@
     "voice:status": "tsx --import ./lib/env.ts scripts/voice/toggle-retell.ts status",
     "dev:web": "vite --config web/vite.config.ts",
     "test": "vitest run",
-    "evals": "vitest run lib/evals"
+    "evals": "vitest run lib/evals",
+    "mcp:keys": "tsx --import ./lib/env.ts scripts/mcp/keys.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@prisma/composer": "0.33.0",
     "@prisma/composer-prisma-cloud": "0.33.0",
     "@prisma/orm-extension-pgvector": "8.0.0-rc.19",

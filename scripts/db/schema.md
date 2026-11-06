@@ -49,6 +49,17 @@ erDiagram
         text        content       "passage text"
         vector_1536 embedding     "pgvector vector(1536)"
     }
+
+    mcp_keys {
+        serial      key_id        PK
+        text        name          "who the key is for"
+        text        key_prefix    UK "first 12 characters of the key, e.g. sam_8f3kQ2xa"
+        text        key_hash      UK "SHA-256 of the key (the key itself is never stored)"
+        int         hourly_limit  "nullable, tool calls per hour (null = default 60)"
+        timestamptz created_at
+        timestamptz last_used_at  "nullable, updated at most every 5 minutes"
+        timestamptz revoked_at    "nullable, set by npm run mcp:keys -- revoke"
+    }
 ```
 
 **Legend**
@@ -64,6 +75,7 @@ erDiagram
 - **`manuals`**: one row per unique PDF manual (owner's or navigation; the interactive HTML manuals are not included). Many trims share the same PDF, so each PDF is stored, chunked and embedded once. The local copy of a PDF is `data/acura_manuals/manuals_{year}/raw/{doc_code}.PDF`.
 - **`vehicle_manuals`**: links trims to the manuals that cover them (many-to-many). A trim has an owner's manual, and many also have a navigation manual.
 - **`chunks`**: one row per searchable passage with its embedding. Searches filter by `manual_id` first, so answers never mix vehicles.
+- **`mcp_keys`**: the API keys of the external agents allowed to call the MCP server (`/api/mcp`), one row per key (each key belongs to one client), managed with `npm run mcp:keys`. Not linked to the other tables.
 
 ## How the agent uses it
 

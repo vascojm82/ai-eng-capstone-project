@@ -6,6 +6,7 @@ import { fileURLToPath } from "url";
 import { flushTraces } from "./lib/tracing.ts";
 import authRouter from "./routes/auth.ts";
 import assistantRouter from "./routes/assistant.ts";
+import mcpRouter from "./routes/mcp.ts";
 import voiceRouter from "./routes/voice.ts";
 
 const app = express();
@@ -19,6 +20,7 @@ app.set("trust proxy", 1);
 app.use("/api", voiceRouter); // /api/voice/ask (Retell only, signed requests)
 app.use(express.json());
 
+app.use("/api", mcpRouter); // /api/mcp (external agents, API keys); before assistantRouter's requireAuth()
 app.use("/api", authRouter); // /api/login, /api/logout, /api/me
 app.use("/api", assistantRouter); // /api/chat, /api/search (logged-in users only)
 
@@ -26,10 +28,24 @@ app.use("/api", assistantRouter); // /api/chat, /api/search (logged-in users onl
 // compiled server. Any other URL gets the app's index.html, so the page loads
 // whatever path the browser asks for. Locally with `npm run dev` there's no
 // build: the frontend runs on Vite's dev server (npm run dev:web) instead.
+//
+// Caching: the build gives every file the same date and index.html the same
+// size on each deploy, so Express's ETag (size + date) never changes and a
+// browser would keep an old index.html that loads scripts the new deploy no
+// longer has. So index.html is never cached, while assets/ (names with a
+// content hash) are cached for good, and a missing asset is a 404 rather than
+// index.html (which the browser can't run as a script).
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), "public");
 if (existsSync(publicDir)) {
-  app.use(express.static(publicDir));
-  app.get(/^(?!\/api\/).*/, (req, res) => res.sendFile(join(publicDir, "index.html")));
+  app.use(
+    "/assets",
+    express.static(join(publicDir, "assets"), { immutable: true, maxAge: "1y", fallthrough: false }),
+  );
+  app.use(express.static(publicDir, { index: false }));
+  app.get(/^(?!\/api\/).*/, (req, res) => {
+    res.set("Cache-Control", "no-store");
+    res.sendFile(join(publicDir, "index.html"), { etag: false, lastModified: false });
+  });
 }
 
 const jsonErrorHandler: ErrorRequestHandler = (err, req, res, next) => {

@@ -28,7 +28,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'84297d9e6d333fc3f2808eebe32bfc49d01e5bdfcaa2cec27d1b60f682f2e5d8'>;
+  StorageHashBase<'f16d28cb8ebace063a3dd084a0904fb3be753924919ea7a753020b331f57abf8'>;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
@@ -326,6 +326,17 @@ export namespace Models {
     vehicles: public_VehicleManual[];
     readonly [RelationKeys]?: 'chunks' | 'vehicles';
   };
+  export type public_McpKey = {
+    createdAt: FieldOutputTypes['public']['McpKey']['createdAt'];
+    hourlyLimit: FieldOutputTypes['public']['McpKey']['hourlyLimit'];
+    id: FieldOutputTypes['public']['McpKey']['id'];
+    keyHash: FieldOutputTypes['public']['McpKey']['keyHash'];
+    keyPrefix: FieldOutputTypes['public']['McpKey']['keyPrefix'];
+    lastUsedAt: FieldOutputTypes['public']['McpKey']['lastUsedAt'];
+    name: FieldOutputTypes['public']['McpKey']['name'];
+    revokedAt: FieldOutputTypes['public']['McpKey']['revokedAt'];
+    readonly [RelationKeys]?: never;
+  };
   export type public_Vehicle = {
     id: FieldOutputTypes['public']['Vehicle']['id'];
     make: FieldOutputTypes['public']['Vehicle']['make'];
@@ -350,6 +361,7 @@ export declare const models: {
   public: {
     Chunk: Models.public_Chunk;
     Manual: Models.public_Manual;
+    McpKey: Models.public_McpKey;
     Vehicle: Models.public_Vehicle;
     VehicleManual: Models.public_VehicleManual;
   };
@@ -551,6 +563,69 @@ type ContractBase = Omit<
               indexes: readonly [];
               foreignKeys: readonly [];
             };
+            readonly mcp_keys: {
+              columns: {
+                readonly created_at: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly hourly_limit: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly key_hash: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly key_id: {
+                  readonly dataType: 'pg/int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'function';
+                    readonly expression: 'autoincrement()';
+                  };
+                  readonly many: false;
+                };
+                readonly key_prefix: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly last_used_at: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+                readonly name: {
+                  readonly dataType: 'pg/text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly many: false;
+                };
+                readonly revoked_at: {
+                  readonly dataType: 'pg/timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: true;
+                  readonly many: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['key_id'] };
+              uniques: readonly [
+                { readonly columns: readonly ['key_prefix'] },
+                { readonly columns: readonly ['key_hash'] },
+              ];
+              indexes: readonly [];
+              foreignKeys: readonly [];
+            };
             readonly vehicle_manuals: {
               columns: {
                 readonly manual_id: {
@@ -692,6 +767,7 @@ type ContractBase = Omit<
   readonly roots: {
     readonly chunks: { readonly namespace: 'public' & NamespaceId; readonly model: 'Chunk' };
     readonly manuals: { readonly namespace: 'public' & NamespaceId; readonly model: 'Manual' };
+    readonly mcp_keys: { readonly namespace: 'public' & NamespaceId; readonly model: 'McpKey' };
     readonly vehicle_manuals: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'VehicleManual';
@@ -872,6 +948,66 @@ type ContractBase = Omit<
                 readonly title: { readonly column: 'title' };
                 readonly updatedAt: { readonly column: 'updated_at' };
                 readonly year: { readonly column: 'year' };
+              };
+            };
+          };
+          readonly McpKey: {
+            readonly fields: {
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+              readonly hourlyLimit: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly keyHash: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly keyPrefix: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly lastUsedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+              readonly name: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly revokedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: {
+              readonly table: 'mcp_keys';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly createdAt: { readonly column: 'created_at' };
+                readonly hourlyLimit: { readonly column: 'hourly_limit' };
+                readonly id: { readonly column: 'key_id' };
+                readonly keyHash: { readonly column: 'key_hash' };
+                readonly keyPrefix: { readonly column: 'key_prefix' };
+                readonly lastUsedAt: { readonly column: 'last_used_at' };
+                readonly name: { readonly column: 'name' };
+                readonly revokedAt: { readonly column: 'revoked_at' };
               };
             };
           };
