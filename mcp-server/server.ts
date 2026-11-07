@@ -47,11 +47,13 @@ const textResult = (text: string, isError = false): CallToolResult => ({ content
 export function createMcpServer(db: Db, owner: McpKeyOwner): McpServer {
   const server = new McpServer(SERVER_INFO);
 
-  // One LangSmith trace per call, tagged with the client (never its key)
+  // One LangSmith trace per call, tagged with the client (never its key). The
+  // channel is in both the inputs and the metadata, as in the assistant's traces.
   const traceConfig = (name: string) => ({
     name,
     run_type: "tool",
     metadata: { channel: "mcp", client: owner.name, keyPrefix: owner.keyPrefix },
+    processInputs: (args: Readonly<Record<string, unknown>>) => ({ ...args, channel: "mcp" }),
   });
   const findManuals = traceable(
     async (args: z.infer<typeof McpFindManualsArgs>) =>

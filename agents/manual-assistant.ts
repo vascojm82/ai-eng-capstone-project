@@ -18,7 +18,7 @@
  * trace: the model calls, and each tool call with what it returned.
  */
 
-import { traceable } from "langsmith/traceable";
+import { getCurrentRunTree, traceable } from "langsmith/traceable";
 import type OpenAI from "openai";
 import { zodFunction } from "openai/helpers/zod";
 import { z } from "zod";
@@ -326,6 +326,9 @@ async function answer(
   conversation: ChatMessage[],
   { voice = false }: { voice?: boolean } = {},
 ): Promise<AgentReply> {
+  // The channel is also the trace's metadata, so LangSmith's channel filter finds web, phone and MCP traces alike
+  const run = getCurrentRunTree(true);
+  if (run) run.metadata = { channel: channelOf(voice) };
   const vehicle = await knownVehicle(db, conversation);
 
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
@@ -383,6 +386,9 @@ async function answer(
   };
 }
 
+/** Where a question came from, as the traces record it */
+const channelOf = (voice: boolean | undefined) => (voice ? "phone" : "web");
+
 /**
  * Answers the latest message of the conversation, as one LangSmith trace.
  * The trace's input is the conversation and where it came from (web chat or
@@ -393,6 +399,6 @@ export const runAgent = traceable(answer, {
   run_type: "chain",
   processInputs: ({ args: [, conversation, options] }) => ({
     conversation,
-    channel: options?.voice ? "phone" : "web",
+    channel: channelOf(options?.voice),
   }),
 });
