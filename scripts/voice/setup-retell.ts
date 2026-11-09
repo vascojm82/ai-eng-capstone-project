@@ -31,7 +31,7 @@ import { AGENT_NAME, findAgent, getPhoneNumber, retellFromEnv } from "./retell.t
 // Where the owners_manual_lookup tool sends questions: the /api/voice/ask of your deployed app
 const TOOL_URL = process.env.RETELL_TOOL_URL ?? "";
 // The small GPT-6 model: Retell's LLM only runs the conversation, our server does the search.
-// Set with `model`/`model_temperature`: retell-sdk 6.2.7 doesn't have the newer `model_config` yet.
+// Set in `model_config` (Retell deprecated the separate `model`/`model_temperature` fields).
 const MODEL = "gpt-6-luna";
 const VOICE_ID = "cartesia-Andrew"; // a standard voice ($0.015/min); ElevenLabs voices cost more
 const MODELS = ["ADX", "ILX", "Integra", "MDX", "NSX", "RDX", "TLX", "ZDX"];
@@ -51,8 +51,11 @@ const GENERAL_PROMPT = `You are the Service Assistant. You answer phone calls fr
 - If the caller is abusive (insults, threats, or foul language directed at you), call end_call_abusive right away, without saying anything else first: it tells the caller why the call is ending and hangs up. A caller who is frustrated with their car, even with a mild swear word ("this damn light"), is not abusive: keep helping them.`;
 
 const LLM: Retell.LlmCreateParams = {
-  model: MODEL,
-  model_temperature: 0, // Retell recommends a low value for tool calling
+  model_config: {
+    type: "cascading", // a text LLM with a separate voice
+    primary: { model: MODEL, tier: "standard" }, // faster tiers cost more
+    temperature: 0, // Retell recommends a low value for tool calling
+  },
   start_speaker: "agent",
   begin_message: "Hi, this is the Service Assistant. This call may be recorded. How can I help you with your Acura today?",
   general_prompt: GENERAL_PROMPT,
